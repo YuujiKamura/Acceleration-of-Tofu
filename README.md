@@ -19,8 +19,8 @@
 
 1. リポジトリをクローン：
 ```bash
-git clone https://github.com/yourusername/acceleration-of-tofu.git
-cd acceleration-of-tofu
+git clone https://github.com/YuujiKamura/Acceleration-of-Tofu.git
+cd Acceleration-of-Tofu
 ```
 
 2. 依存パッケージをインストール：
