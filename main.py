@@ -42,7 +42,7 @@ def play_bgm_pattern(pattern, tempo, drum_sounds, drum_types):
                 sound_type = drum_types[row]
                 if sound_type in drum_sounds and drum_sounds[sound_type]:
                     sound = drum_sounds[sound_type]
-                    sound.set_volume(0.7)
+                    sound.set_volume(0.5)
                     sound.play()
 
 def main():
@@ -55,7 +55,7 @@ def main():
     
     # タイトルBGMの読み込み
     title_bgm = pygame.mixer.Sound("assets/sounds/rockman_title.wav")
-    title_bgm.set_volume(0.7)  # 音量を70%に設定
+    title_bgm.set_volume(0.5)  # 音量を50%に設定
     title_bgm_playing = False
     
     # BGMパターンの読み込み
