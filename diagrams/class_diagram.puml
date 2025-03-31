@@ -1,0 +1,208 @@
+@startuml Acceleration of Tofu クラス関係図
+
+' スタイル設定
+skinparam classAttributeIconSize 0
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Yu Gothic UI
+skinparam defaultFontSize 12
+
+' 列挙型
+enum GameState {
+  TITLE
+  GAME
+  MENU
+  CONTROLS
+  TRAINING
+  PAUSE
+  RESULT
+  KEY_CONFIG
+  AUTO_TEST
+  OPTIONS
+}
+
+' メインのゲームクラス
+class Game {
+  - screen
+  - state: GameState
+  - arena: Arena
+  - player1: Player
+  - player2: Player
+  - hud: HUD
+  - projectiles: List
+  - effects: List
+  - sounds: Dict
+  + __init__(screen)
+  + init_sounds()
+  + handle_keydown(key)
+  + handle_keyup(key)
+  + update()
+  + auto_test_ai_control(player, opponent, is_player1)
+  + simple_ai_control()
+  + handle_collisions()
+  + draw()
+  + draw_title_screen()
+  + add_projectile(projectile)
+  + add_effect(effect)
+  + reset_players()
+  + save_key_config()
+  + load_key_config()
+}
+
+' プレイヤークラス
+class Player {
+  - x, y: float
+  - radius: int
+  - is_player1: bool
+  - color
+  - health: int
+  - heat: float
+  - hyper_gauge: float
+  - speed: float
+  - is_dashing: bool
+  - weapons: Dict
+  - game: Game
+  + __init__(x, y, is_player1)
+  + update(keys, arena, opponent)
+  + move(keys, arena)
+  + handle_weapons(keys, opponent)
+  + create_projectile(weapon, opponent)
+  + activate_hyper()
+  + take_damage(amount)
+  + is_shielding()
+  + collides_with(projectile)
+  + draw(screen)
+}
+
+' 武器クラス
+class Weapon {
+  - name: str
+  - type: int
+  - damage: int
+  - heat_cost: int
+  + __init__(name, type, damage, heat_cost)
+}
+
+' 発射物クラス
+class Projectile {
+  - x, y: float
+  - speed_x, speed_y: float
+  - damage: int
+  - owner: Player
+  - lifespan: int
+  + __init__(x, y, speed_x, speed_y, damage, owner)
+  + update()
+  + draw(screen)
+  + collides_with(player)
+}
+
+' 派生クラス：ビーム発射物
+class BeamProjectile {
+  - length: int
+  - width: int
+  + __init__(x, y, speed_x, speed_y, damage, owner)
+  + update()
+  + draw(screen)
+  + collides_with(player)
+}
+
+' 派生クラス：バリスティック発射物
+class BallisticProjectile {
+  - gravity: float
+  + __init__(x, y, speed_x, speed_y, damage, owner)
+  + update()
+  + draw(screen)
+}
+
+' 派生クラス：近接発射物
+class MeleeProjectile {
+  - radius: int
+  + __init__(x, y, damage, owner)
+  + update()
+  + draw(screen)
+}
+
+' エフェクトクラス
+class DashRing {
+  - x, y: float
+  - radius: float
+  - max_radius: float
+  - growth_rate: float
+  - duration: int
+  - direction_x, direction_y: float
+  + __init__(x, y, duration, direction_x, direction_y)
+  + update()
+  + draw(screen)
+  + is_dead(): bool
+}
+
+' シールドエフェクト
+class ShieldEffect {
+  - owner: Player
+  - radius: float
+  - max_radius: float
+  - duration: int
+  - current_frame: int
+  + __init__(owner)
+  + update()
+  + draw(screen)
+}
+
+' ハイパーエフェクト
+class HyperEffect {
+  - x, y: float
+  - owner: Player
+  - duration: int
+  - current_frame: int
+  - size: float
+  + __init__(x, y, owner, duration)
+  + update()
+  + draw(screen)
+}
+
+' アリーナクラス
+class Arena {
+  - width: int
+  - height: int
+  - center_x: int
+  - center_y: int
+  + __init__()
+  + draw(screen)
+  + is_inside(x, y): bool
+  + is_near_border(x, y): bool
+}
+
+' HUDクラス
+class HUD {
+  - player1: Player
+  - player2: Player
+  - font_name: str
+  - fonts: Dict
+  + __init__(player1, player2)
+  + draw(screen)
+  + draw_health_bar(screen, x, y, width, height, percentage, color)
+  + draw_heat_bar(screen, x, y, width, height, percentage, color)
+  + draw_hyper_gauge(screen, x, y, width, height, percentage, color)
+}
+
+' 関連性の定義
+Game --> GameState
+Game *--> Arena
+Game *--> Player
+Game *--> HUD
+Game o--> Projectile
+Game o--> DashRing
+Game o--> ShieldEffect
+Game o--> HyperEffect
+Player *--> Weapon
+Player o--> DashRing
+Player o--> ShieldEffect
+Player o--> HyperEffect
+Player --> Game
+Projectile <|-- BeamProjectile
+Projectile <|-- BallisticProjectile
+Projectile <|-- MeleeProjectile
+Projectile --> Player
+HUD --> Player
+
+@enduml 
