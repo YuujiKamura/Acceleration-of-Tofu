@@ -1,27 +1,42 @@
+# pre-commitの設定ファイル
+# GitHubなどから取得するフックのリポジトリを定義
 repos:
--   repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: 'v0.0.262'
+-   # Ruffは高速なPythonリンター（構文チェックツール）
+    repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: 'v0.0.262'  # 使用するバージョン
     hooks:
-    -   id: ruff
-        args: [--fix, --exit-non-zero-on-fix, --ignore, 'F405,E501']
-        exclude: ^(backup/|tests/)
+    -   id: ruff  # Ruffを実行するフック
+        args: [--fix, --exit-non-zero-on-fix] 
+        # --fix: 自動修正を有効化
+        # --exit-non-zero-on-fix: 自動修正が行われた場合でもエラー終了コードを返す。
+        #   これにより、修正されたコードを確認する機会が得られ、
+        #   「問題があったが修正された」という情報が開発者に伝わる
+        exclude: ^(backup/|tests/)  # backup/とtests/ディレクトリは除外
         
--   repo: local
+-   # ローカルで定義するフック（独自スクリプトなど）
+    repo: local
     hooks:
-    -   id: complexity-check
+    -   # 循環的複雑度（コードの複雑さ）をチェックするフック
+        id: complexity-check
         name: Check code complexity
-        entry: radon
-        args: ['cc', '--min', 'D', 'game/']
+        entry: radon  # radonツールを使用
+        args: ['cc', '--min', 'D', 'game/']  # 'D'ランク以上の複雑さを持つコードをgame/ディレクトリで検出
         language: python
-        pass_filenames: false
-        types: [python]
-        additional_dependencies: ['radon']
+        pass_filenames: false  # 個別ファイル名を渡さない（ディレクトリ全体をチェック）
+        types: [python]  # Pythonファイルのみ対象
+        additional_dependencies: ['radon']  # 追加で必要なパッケージ
         
-    -   id: line-count-check
+    -   # ファイルの行数をチェックするフック
+        id: line-count-check
         name: Check file line count
-        entry: radon
-        args: ['raw', 'game/', '-s']
+        entry: python
+        # 以下のPythonスクリプトをその場で実行:
+        # 1. radon rawコマンドを実行してgame/ディレクトリのファイル情報をJSON形式で取得
+        # 2. 500行を超えるファイルを検出
+        # 3. 大きなファイルがあればそのリストを表示してエラー終了(exit code 1)
+        # 4. 問題なければ成功終了(exit code 0)
+        args: ['-c', 'import sys; import subprocess; result = subprocess.run(["radon", "raw", "game/", "-j"], capture_output=True, text=True); import json; data = json.loads(result.stdout); large_files = [f for f, metrics in data.items() if metrics["loc"] > 500]; exit_code = 1 if large_files else 0; print("Files exceeding 500 lines:" + "\\n".join(large_files) if large_files else "All files are under 500 lines limit."); sys.exit(exit_code)']
         language: python
-        pass_filenames: false
-        types: [python]
-        additional_dependencies: ['radon'] 
+        pass_filenames: false  # 個別ファイル名を渡さない
+        types: [python]  # Pythonファイルのみ対象
+        additional_dependencies: ['radon']  # 追加で必要なパッケージ 
