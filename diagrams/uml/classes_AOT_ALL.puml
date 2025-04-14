@@ -1,0 +1,253 @@
+@startuml classes_AOT_ALL
+set namespaceSeparator none
+class "Arena" as game.arena.Arena {
+  border_alpha : int
+  border_alpha_direction : int
+  border_alpha_speed : int
+  center_x : int
+  center_y : int
+  radius : int
+  warning_radius : int
+  constrain_position(x, y)
+  draw(screen)
+  is_inside(x, y)
+  is_near_border(x, y)
+  update()
+}
+class "BallisticProjectile" as game.projectile.BallisticProjectile {
+  color : tuple
+  damage
+  homing : bool
+  homing_strength : float
+  length : int
+  lifetime
+  radius : int
+  speed : float, int
+  draw(screen)
+  on_hit(target)
+}
+class "BeamProjectile" as game.projectile.BeamProjectile {
+  color : tuple
+  damage
+  homing : bool
+  homing_strength : float
+  length : int
+  lifetime
+  radius : int
+  speed : float, int
+  draw(screen)
+  on_hit(target)
+}
+class "DashRing" as game.player.DashRing {
+  direction_x : int
+  direction_y : int
+  duration
+  is_dead
+  max_duration
+  max_radius : int
+  radius : int
+  start_radius : int
+  x
+  y
+  draw(screen)
+  update()
+}
+class "Game" as game.game.Game {
+  ai_move_direction1 : dict
+  ai_move_direction2 : dict
+  ai_move_interval : int
+  ai_move_timer1 : int
+  ai_move_timer2 : int
+  arena
+  current_time : int
+  current_zoom : float
+  effects : list
+  font_name : NoneType, str
+  hud
+  key_config_items : list
+  key_config_player : int
+  key_config_selected_item : int
+  keys_pressed : dict
+  menu_items : list
+  option_menu_items : list
+  option_selected_item : int
+  pause_menu_items : list
+  pause_selected_item : int
+  player1
+  player2
+  previous_state : AUTO_TEST, CONTROLS, GAME, KEY_CONFIG, OPTIONS, PAUSE, TITLE, TRAINING
+  projectiles : list
+  result_timer : int
+  screen
+  selected_item : int
+  selected_test_time : int
+  sounds : dict
+  state : AUTO_TEST, CONTROLS, GAME, KEY_CONFIG, OPTIONS, PAUSE, RESULT, TITLE, TRAINING
+  target_zoom : float
+  test_duration : float, int
+  test_time_options : list
+  test_timer : int
+  waiting_for_key_input : bool
+  winner : int
+  add_effect(effect)
+  add_projectile(projectile)
+  auto_test_ai_control(player, opponent, is_player1)
+  decide_movement_style(player, opponent, is_player1)
+  draw()
+  draw_controls_screen()
+  draw_pause_menu()
+  draw_result_screen()
+  draw_title_screen()
+  draw_to_surface(surface)
+  handle_collisions()
+  handle_keydown(key)
+  handle_keyup(key)
+  init_fonts()
+  init_sounds()
+  is_projectile_nearby(player, distance_threshold)
+  load_key_config()
+  predict_projectile_collision(player)
+  reset_key_config()
+  reset_players()
+  save_key_config()
+  simple_ai_control()
+  update()
+}
+class "GameState" as game.state.GameState {
+  name
+}
+class "HUD" as game.hud.HUD {
+  font : Font
+  font_name : str
+  frame_count : int
+  player1
+  player2
+  draw(screen)
+  draw_player_hud(screen, player, x, y, is_left)
+  find_japanese_font()
+}
+class "HyperEffect" as game.player.HyperEffect {
+  duration
+  is_dead : bool
+  max_duration
+  owner
+  radius : int
+  x
+  y
+  draw(screen)
+  update()
+}
+class "MeleeProjectile" as game.projectile.MeleeProjectile {
+  color : tuple
+  damage
+  homing : bool
+  length : int
+  lifetime : int
+  radius : int
+  speed : float, int
+  x
+  y
+  draw(screen)
+  on_hit(target)
+  update()
+}
+class "Player" as game.player.Player {
+  color : tuple
+  dash_cooldown : int
+  dash_direction_x : float, int
+  dash_direction_y : float, int
+  dash_ring_counter : int
+  dash_ring_interval : int
+  dash_rings : list
+  dash_speed : int
+  dash_turn_speed : float
+  facing_angle : int
+  game : NoneType
+  has_fired_hyper_laser : bool
+  health : int
+  heat : int
+  hyper_duration : int
+  hyper_gauge : int
+  is_dashing : bool
+  is_hyper_active : bool
+  is_overheated : bool
+  is_player1 : bool
+  is_shield_active : bool
+  is_shooting : bool
+  is_special : bool
+  is_special_spread_active : bool
+  overheated_threshold : float
+  prev_x : int
+  prev_y : int
+  radius : int
+  shield_duration_counter : int
+  shield_effect : NoneType
+  shoot_cooldown : int
+  speed : int
+  square_size : int
+  weapon_b_base_angle : int
+  weapon_b_burst_active : bool
+  weapon_b_burst_count : int
+  weapon_b_burst_delay : int
+  weapon_b_burst_timer : int
+  weapon_b_burst_total : int
+  weapon_b_target : NoneType
+  weapons : dict
+  x : int
+  y : int
+  activate_hyper()
+  collides_with(projectile)
+  create_projectile(weapon, opponent)
+  create_projectile_with_angle(weapon, angle)
+  draw(screen)
+  handle_weapons(keys, opponent)
+  is_shielding()
+  move(keys, arena)
+  take_damage(amount)
+  update(keys, arena, opponent)
+}
+class "Projectile" as game.projectile.Projectile {
+  angle
+  damage
+  homing : bool
+  homing_strength : float
+  is_dead : bool
+  lifetime : int
+  owner
+  radius : int
+  speed : int
+  x
+  y
+  draw(screen)
+  home_towards(target)
+  on_hit(target)
+  reflect(reflector)
+  update()
+}
+class "ShieldEffect" as game.player.ShieldEffect {
+  base_radius
+  duration : int
+  is_dead : bool
+  max_duration : int
+  owner
+  ring_count : int
+  rings : list
+  draw(screen)
+  update()
+}
+class "Weapon" as game.weapon.Weapon {
+  cooldown
+  damage
+  name
+  type
+}
+game.projectile.BallisticProjectile --|> game.projectile.Projectile
+game.projectile.BeamProjectile --|> game.projectile.Projectile
+game.projectile.MeleeProjectile --|> game.projectile.Projectile
+game.arena.Arena --* game.game.Game : arena
+game.hud.HUD --* game.game.Game : hud
+game.player.Player --* game.game.Game : player1
+game.player.Player --* game.game.Game : player2
+game.player.ShieldEffect --* game.player.Player : shield_effect
+game.game.Game --o game.player.Player : game
+@enduml

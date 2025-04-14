@@ -1,0 +1,37 @@
+@startuml packages_AOT
+set namespaceSeparator none
+package "game" as game {
+}
+package "game.arena" as game.arena {
+}
+package "game.constants" as game.constants {
+}
+package "game.fix_key_config" as game.fix_key_config {
+}
+package "game.game" as game.game {
+}
+package "game.hud" as game.hud {
+}
+package "game.player" as game.player {
+}
+package "game.projectile" as game.projectile {
+}
+package "game.sound_effects" as game.sound_effects {
+}
+package "game.state" as game.state {
+}
+package "game.weapon" as game.weapon {
+}
+game.arena --> game.constants
+game.fix_key_config --> game.constants
+game.game --> game.arena
+game.game --> game.constants
+game.game --> game.hud
+game.game --> game.player
+game.game --> game.state
+game.hud --> game.constants
+game.player --> game.constants
+game.player --> game.projectile
+game.player --> game.weapon
+game.projectile --> game.constants
+@enduml

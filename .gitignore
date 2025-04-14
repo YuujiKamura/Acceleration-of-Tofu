@@ -24,12 +24,18 @@ wheels/
 venv/
 env/
 ENV/
+.venv/
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+.specstory/
+.cursorindexingignore
+
+# Generated diagrams (comment this out if you want to include them in version control)
+diagrams/uml/generated/
 
 # Project specific
 Pysynth/
