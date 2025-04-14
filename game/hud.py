@@ -1,5 +1,9 @@
 import pygame
-from game.constants import *
+from game.constants import (
+    SCREEN_WIDTH, JAPANESE_FONT_NAMES, DEFAULT_FONT,
+    WHITE, GRAY, GREEN, ORANGE, RED, YELLOW, CYAN,
+    MAX_HEALTH, MAX_HEAT, MAX_HYPER
+)
 
 class HUD:
     """ゲームのHUD（ヘッドアップディスプレイ）を管理するクラス"""

@@ -1,18 +1,13 @@
 import pygame
 import numpy as np
-import os
 import time
 from scipy.signal import butter, filtfilt
 import urllib.request
-import zipfile
-import io
 import threading
 from pathlib import Path
 import json
 from game.constants import SCREEN_WIDTH, SCREEN_HEIGHT  # 定数をインポート
 import wave
-import struct
-from scipy import signal
 
 # Pygameの初期化
 pygame.init()
@@ -244,16 +239,16 @@ def create_drum_sound(sound_type, volume=0.7, quality="high"):
         noise = np.random.uniform(-1, 1, len(t))
         
         # 低周波フィルタリング（より穏やかな轟音）
-        b, a = signal.butter(4, 150/sample_rate*2, btype='low')
-        low_noise = signal.filtfilt(b, a, noise)
+        b, a = butter(4, 150/sample_rate*2, btype='low')
+        low_noise = filtfilt(b, a, noise)
         
         # 中周波フィルタリング（より柔らかい破裂音）
-        b2, a2 = signal.butter(4, [150/sample_rate*2, 1000/sample_rate*2], btype='band')
-        mid_noise = signal.filtfilt(b2, a2, noise)
+        b2, a2 = butter(4, [150/sample_rate*2, 1000/sample_rate*2], btype='band')
+        mid_noise = filtfilt(b2, a2, noise)
         
         # 高周波成分を抑える
-        b3, a3 = signal.butter(4, 2000/sample_rate*2, btype='high')
-        high_noise = signal.filtfilt(b3, a3, noise)
+        b3, a3 = butter(4, 2000/sample_rate*2, btype='high')
+        high_noise = filtfilt(b3, a3, noise)
         
         # 各成分のエンベロープ（よりゆっくりと）
         env_low = np.exp(-3 * t)
@@ -586,7 +581,7 @@ def play_bgm(drum_sounds, drum_types):
         return
     
     current_time = time.time()
-    beat_interval = 60 / bgm_tempo / 4  # 16分音符の間隔
+    60 / bgm_tempo / 4  # 16分音符の間隔
     
     # 現在のビート位置を計算
     current_beat = int((current_time * bgm_tempo / 60 * 4) % 16)
@@ -675,8 +670,8 @@ def create_piano_sound(base_freq, volume=0.7, quality="high"):
     wave[:attack_samples] += attack_noise * attack_env * 0.3
     
     # 弦の共鳴効果（より自然な共鳴）
-    b, a = signal.butter(2, [0.1, 0.9], btype='band')
-    resonance = signal.lfilter(b, a, wave)
+    b, a = butter(2, [0.1, 0.9], btype='band')
+    resonance = filtfilt(b, a, wave)
     wave = wave + resonance * 0.2
     
     # DCオフセット除去
@@ -1005,7 +1000,7 @@ def main():
 
 if __name__ == "__main__":
     try:
-        from scipy import signal
+        pass
     except ImportError:
         print("Scipyライブラリが必要です。'pip install scipy'を実行してインストールしてください。")
     

@@ -1,0 +1,27 @@
+repos:
+-   repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: 'v0.0.262'
+    hooks:
+    -   id: ruff
+        args: [--fix, --exit-non-zero-on-fix, --ignore, 'F405,E501']
+        exclude: ^(backup/|tests/)
+        
+-   repo: local
+    hooks:
+    -   id: complexity-check
+        name: Check code complexity
+        entry: radon
+        args: ['cc', '--min', 'D', 'game/']
+        language: python
+        pass_filenames: false
+        types: [python]
+        additional_dependencies: ['radon']
+        
+    -   id: line-count-check
+        name: Check file line count
+        entry: radon
+        args: ['raw', 'game/', '-s']
+        language: python
+        pass_filenames: false
+        types: [python]
+        additional_dependencies: ['radon'] 

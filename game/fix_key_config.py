@@ -3,75 +3,74 @@
 
 import json
 import os
-import sys
 import shutil
-from game.constants import *
+from game.constants import KEY_MAPPING_P1, KEY_MAPPING_P2, KEY_MAPPING, DEFAULT_KEY_MAPPING_P1, DEFAULT_KEY_MAPPING_P2, ACTION_NAMES
 
 def fix_key_config():
-    """�L�[�R���t�B�O�̖����C��"""
-    print("�L�[�R���t�B�O�C���c�[��")
+    """L[RtBO̖C"""
+    print("L[RtBOCc[")
     print("=" * 50)
     
-    # �o�b�N�A�b�v���쐬
+    #obNAbv쐬
     if os.path.exists("key_config.json"):
         try:
             with open("key_config.json", "r") as f:
                 config = json.load(f)
             
             shutil.copy("key_config.json", "key_config.json.backup")
-            print("�����̐ݒ�t�@�C�����o�b�N�A�b�v���܂���")
+            print("̐ݒt@CobNAbv܂")
             
-            print("\n���݂̐ݒ�:")
+            print("\n݂̐ݒ:")
             if "p1" in config:
                 print(f"P1: {config['p1']}")
             else:
-                print("P1�̐ݒ肪����܂���")
+                print("P1̐ݒ肪܂")
             
             if "p2" in config:
                 print(f"P2: {config['p2']}")
             else:
-                print("P2�̐ݒ肪����܂���")
+                print("P2̐ݒ肪܂")
                 
-            # KEY_MAPPING�̏�Ԃ��m�F
-            print("\n���݂�KEY_MAPPING:")
+            # KEY_MAPPING̏ԂmF
+            print("\n݂KEY_MAPPING:")
             print(f"KEY_MAPPING_P1: {KEY_MAPPING_P1}")
             print(f"KEY_MAPPING_P2: {KEY_MAPPING_P2}")
             print(f"KEY_MAPPING: {KEY_MAPPING}")
             
-            # �ݒ�t�@�C���𐮗�
+            # ݒt@C𐮗
             new_config = {"p1": {}, "p2": {}}
             
-            # P1�̐ݒ���N���[���A�b�v
+            # P1̐ݒN[Abv
             if "p1" in config and config["p1"]:
-                # ������̃L�[�𐮐��ɕϊ�
+                # ̃L[𐮐ɕϊ
                 for k, v in config["p1"].items():
                     try:
                         key_int = int(k)
                         new_config["p1"][str(key_int)] = v
                     except ValueError:
-                        print(f"�x��: �s���ȃL�[�l '{k}' ���X�L�b�v���܂�")
+                        print(f"x:sȃL[l '{k}' XLbv܂")
             else:
-                # P1�̐ݒ肪�Ȃ���΃f�t�H���g�l��ݒ�
+                # P1̐ݒ肪Ȃ΃ftHglݒ
                 for k, v in DEFAULT_KEY_MAPPING_P1.items():
                     new_config["p1"][str(k)] = v
-                print("P1�Ƀf�t�H���g�ݒ���g�p���܂�")
+                print("P1ɃftHgݒgp܂")
             
-            # P2�̐ݒ���N���[���A�b�v
+            # P2̐ݒN[Abv
             if "p2" in config and config["p2"]:
-                # ������̃L�[�𐮐��ɕϊ�
+                # ̃L[𐮐ɕϊ
                 for k, v in config["p2"].items():
                     try:
                         key_int = int(k)
                         new_config["p2"][str(key_int)] = v
                     except ValueError:
-                        print(f"�x��: �s���ȃL�[�l '{k}' ���X�L�b�v���܂�")
+                        print(f"x:sȃL[l '{k}' XLbv܂")
             else:
-                # P2�̐ݒ肪�Ȃ���΃f�t�H���g�l��ݒ�
+                # P2̐ݒ肪Ȃ΃ftHglݒ
                 for k, v in DEFAULT_KEY_MAPPING_P2.items():
                     new_config["p2"][str(k)] = v
-                print("P2�Ƀf�t�H���g�ݒ���g�p���܂�")
+                print("P2ɃftHgݒgp܂")
             
-            # �K�{�A�N�V�������ݒ肳��Ă��邩�m�F
+            #K{ANVݒ肳Ă邩mF
             for player in ["p1", "p2"]:
                 missing_actions = []
                 for action in ACTION_NAMES:

@@ -4,7 +4,12 @@ import sys
 import math
 import json
 import os
-from game.constants import *
+from game.constants import (
+    ARENA_CENTER_X, ARENA_CENTER_Y, ARENA_RADIUS, KEY_MAPPING_P1, KEY_MAPPING_P2, KEY_MAPPING, ACTION_NAMES,
+    JAPANESE_FONT_NAMES, DEFAULT_FONT, YELLOW, 
+    SCREEN_WIDTH, SCREEN_HEIGHT, WHITE, GRAY, CYAN, DEFAULT_KEY_MAPPING_P1, DEFAULT_KEY_MAPPING_P2,
+    MAX_HEALTH, KEY_NAMES
+)
 from game.player import Player
 from game.arena import Arena
 from game.hud import HUD
@@ -130,8 +135,8 @@ class Game:
                 try:
                     self.sounds[sound_name] = pygame.mixer.Sound(full_path)
                     print(f"効果音をロードしました: {sound_name}")
-                except:
-                    print(f"効果音のロードに失敗しました: {sound_name}")
+                except Exception as e:
+                    print(f"効果音のロードに失敗しました: {sound_name} - {e}")
             else:
                 print(f"効果音ファイルが見つかりません: {sound_path}")
     
@@ -561,7 +566,7 @@ class Game:
         # アリーナの中心からの距離
         arena_dx = ARENA_CENTER_X - player.x
         arena_dy = ARENA_CENTER_Y - player.y
-        arena_distance = (arena_dx**2 + arena_dy**2)**0.5
+        (arena_dx**2 + arena_dy**2)**0.5
         
         # 移動方向の初期化
         movement = {
@@ -831,8 +836,8 @@ class Game:
             center_y = (self.player1.y + self.player2.y) / 2
             
             # ズーム後のサイズを計算
-            zoom_width = int(SCREEN_WIDTH * self.current_zoom)
-            zoom_height = int(SCREEN_HEIGHT * self.current_zoom)
+            int(SCREEN_WIDTH * self.current_zoom)
+            int(SCREEN_HEIGHT * self.current_zoom)
             
             # ズーム中心点からの切り出し位置を計算
             clip_x = int(center_x - SCREEN_WIDTH / (2 * self.current_zoom))
@@ -1442,8 +1447,8 @@ class Game:
             center_y = (self.player1.y + self.player2.y) / 2
             
             # ズーム後のサイズを計算
-            zoom_width = int(SCREEN_WIDTH * current_zoom)
-            zoom_height = int(SCREEN_HEIGHT * current_zoom)
+            int(SCREEN_WIDTH * current_zoom)
+            int(SCREEN_HEIGHT * current_zoom)
             
             # ズーム中心点からの切り出し位置を計算
             clip_x = int(center_x - SCREEN_WIDTH / (2 * current_zoom))

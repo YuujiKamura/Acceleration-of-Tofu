@@ -1,6 +1,6 @@
 import pygame
 import math
-from game.constants import *
+from game.constants import ARENA_RADIUS, ARENA_WARNING_RADIUS, ARENA_CENTER_X, ARENA_CENTER_Y, ORANGE, RED
 
 class Arena:
     """円形アリーナを管理するクラス"""

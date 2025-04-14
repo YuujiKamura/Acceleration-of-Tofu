@@ -1,6 +1,10 @@
 import pygame
 import math
-from game.constants import *
+from game.constants import (
+    ARENA_CENTER_X, ARENA_CENTER_Y, ARENA_RADIUS, 
+    WHITE, CYAN, MAGENTA, YELLOW, ORANGE, GREEN, RED,
+    MAX_HYPER
+)
 
 class Projectile:
     """弾の基底クラス"""

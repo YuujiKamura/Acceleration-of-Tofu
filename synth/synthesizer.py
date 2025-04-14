@@ -1,10 +1,7 @@
 import pygame
 import numpy as np
 import pygame.gfxdraw
-import time
 import os
-from io import BytesIO
-from array import array
 
 # Pygameの初期化
 pygame.init()
@@ -295,8 +292,8 @@ def save_recording(sound_list, filename):
         for temp_file in temp_files:
             try:
                 os.remove(temp_file)
-            except:
-                pass
+            except OSError as e:
+                print(f"一時ファイル削除エラー: {e}")
                 
         return True
     except Exception as e:
@@ -305,8 +302,8 @@ def save_recording(sound_list, filename):
         for temp_file in temp_files:
             try:
                 os.remove(temp_file)
-            except:
-                pass
+            except OSError as e:
+                print(f"一時ファイル削除エラー: {e}")
         return False
 
 # メイン関数
@@ -792,7 +789,7 @@ if __name__ == "__main__":
         main(headless=True)
     else:
         try:
-            from scipy import signal
+            pass
         except ImportError:
             print("Scipyライブラリが必要です。'pip install scipy'を実行してインストールしてください。")
         main(headless=False) 
