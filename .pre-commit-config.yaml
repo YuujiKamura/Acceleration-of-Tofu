@@ -20,27 +20,42 @@ repos:
     hooks:
     -   # 循環的複雑度（コードの複雑さ）をチェックするフック
         id: complexity-check
-        name: Check code complexity
-        entry: radon  # radonツールを使用
-        args: ['cc', '--min', 'D', 'game/']  # 'D'ランク以上の複雑さを持つコードをgame/ディレクトリで検出
-        language: python
-        pass_filenames: false  # 個別ファイル名を渡さない（ディレクトリ全体をチェック）
-        types: [python]  # Pythonファイルのみ対象
-        additional_dependencies: ['radon']  # 追加で必要なパッケージ
-        always_run: true  # 常に実行する
+        name: complexity check
+        description: check for code complexity
+        entry: bash -c 'radon cc --min D game/ || (echo "コードの複雑性が高すぎます。リファクタリングを検討してください。" && exit 1)'
+        language: system
+        types: [python]
         
     -   # ファイルの行数をチェックするフック
         id: line-count-check
-        name: Check file line count
-        entry: python
-        # 以下のPythonスクリプトをその場で実行:
-        # 1. radon rawコマンドを実行してgame/ディレクトリのファイル情報をJSON形式で取得
-        # 2. 500行を超えるファイルを検出
-        # 3. 大きなファイルがあればそのリストを表示してエラー終了(exit code 1)
-        # 4. 問題なければ成功終了(exit code 0)
-        args: ['-c', 'import sys; import subprocess; result = subprocess.run(["radon", "raw", "game/", "-j"], capture_output=True, text=True); import json; data = json.loads(result.stdout); large_files = [f for f, metrics in data.items() if metrics["loc"] > 500]; exit_code = 1 if large_files else 0; print("Files exceeding 500 lines:" + "\\n".join(large_files) if large_files else "All files are under 500 lines limit."); sys.exit(exit_code)']
-        language: python
-        pass_filenames: false  # 個別ファイル名を渡さない
-        types: [python]  # Pythonファイルのみ対象
-        additional_dependencies: ['radon']  # 追加で必要なパッケージ
-        always_run: true  # 常に実行する 
+        name: line count check
+        description: check file line counts
+        entry: python -c "import sys; import subprocess; result = subprocess.run('radon raw game/', shell=True, capture_output=True, text=True); lines = [line for line in result.stdout.split('\n') if ' L:' in line]; large_files = [line for line in lines if int(line.split('L:')[1].strip().split()[0]) > 500]; print('大きすぎるファイル:' + '\\n'.join(large_files) if large_files else 'すべてのファイルは500行未満です。'); sys.exit(1 if large_files else 0)"
+        language: system
+        types: [python]
+        verbose: true
+
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: check-yaml
+    -   id: check-added-large-files
+
+-   repo: https://github.com/pycqa/flake8
+    rev: 6.0.0
+    hooks:
+    -   id: flake8
+        additional_dependencies: [flake8-docstrings]
+
+-   repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+    -   id: isort
+        args: ["--profile", "black", "--filter-files"]
+
+-   repo: https://github.com/psf/black
+    rev: 23.3.0
+    hooks:
+    -   id: black 
