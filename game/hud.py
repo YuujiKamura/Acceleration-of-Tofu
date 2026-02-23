@@ -14,7 +14,8 @@ class HUD:
         # 日本語フォント対応
         self.font_name = self.find_japanese_font()
         self.font = pygame.font.SysFont(self.font_name, 20)
-        
+        self.font_large = pygame.font.SysFont(self.font_name, 24)
+
         # 点滅効果用のフレームカウンター
         self.frame_count = 0
     
@@ -102,10 +103,9 @@ class HUD:
         
         # OVERHEATテキスト表示（200%以上の場合）
         if is_overheat:
-            overheat_font = pygame.font.SysFont(self.font_name, 24)
             # 点滅表示
             if self.frame_count % 30 < 15:
-                overheat_text = overheat_font.render("OVERHEAT", True, ORANGE)
+                overheat_text = self.font_large.render("OVERHEAT", True, ORANGE)
                 overheat_rect = overheat_text.get_rect()
                 overheat_rect.midtop = (heat_x + heat_width // 2, heat_y - 30)
                 screen.blit(overheat_text, overheat_rect)
@@ -144,8 +144,7 @@ class HUD:
         
         # ハイパーモード中表示
         if hasattr(player, 'is_hyper_active') and player.is_hyper_active:
-            status_font = pygame.font.SysFont(self.font_name, 24)
-            status_text = status_font.render("ハイパーモード発動中! (ダメージ2倍)", True, YELLOW)
+            status_text = self.font_large.render("ハイパーモード発動中! (ダメージ2倍)", True, YELLOW)
             status_rect = status_text.get_rect()
             status_rect.topleft = (x, y + 115)
             screen.blit(status_text, status_rect) 

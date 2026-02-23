@@ -20,6 +20,15 @@ class Projectile:
         self.lifetime = 60  # デフォルトの寿命（フレーム数）
         self.homing = False  # ホーミング機能のフラグ
         self.homing_strength = 0.0  # ホーミングの強さ（0.0～1.0）
+
+    @property
+    def is_expired(self):
+        """統一された寿命判定プロパティ。既存の is_dead と同義。"""
+        return self.is_dead
+
+    @is_expired.setter
+    def is_expired(self, value):
+        self.is_dead = bool(value)
         
     def update(self):
         """弾の状態を更新"""

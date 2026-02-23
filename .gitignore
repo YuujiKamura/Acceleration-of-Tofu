@@ -43,3 +43,18 @@ key_config.json
 
 # Logs
 *.log 
+
+# FluidSynth関連の再配布不可ファイル
+synth/libs/
+synth/output/
+*.sf2
+
+# 一時ファイル
+temp/
+-p/
+
+# 以下は除外しない（ゲーム内で使用する音源ファイル）
+!assets/sounds/*.wav
+!bgm/*.wav 
+# SpecStory explanation file
+.specstory/.what-is-this.md

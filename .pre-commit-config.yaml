@@ -6,7 +6,7 @@ repos:
     rev: 'v0.0.262'  # 使用するバージョン
     hooks:
     -   id: ruff  # Ruffを実行するフック
-        args: [--fix, --exit-non-zero-on-fix] 
+        args: [--fix, --exit-non-zero-on-fix]
         # --fix: 自動修正を有効化
         # --exit-non-zero-on-fix: 自動修正が行われた場合でもエラー終了コードを返す。
         #   これにより、修正されたコードを確認する機会が得られ、
@@ -14,7 +14,7 @@ repos:
         exclude: ^(backup/|tests/)  # backup/とtests/ディレクトリは除外
         pass_filenames: false  # ファイル名を渡さず、全ファイルをチェック
         always_run: true  # 常に実行（変更があるなしに関わらず）
-        
+
 -   # ローカルで定義するフック（独自スクリプトなど）
     repo: local
     hooks:
@@ -25,7 +25,7 @@ repos:
         entry: bash -c 'radon cc --min D game/ || (echo "コードの複雑性が高すぎます。リファクタリングを検討してください。" && exit 1)'
         language: system
         types: [python]
-        
+
     -   # ファイルの行数をチェックするフック
         id: line-count-check
         name: line count check
@@ -58,4 +58,4 @@ repos:
 -   repo: https://github.com/psf/black
     rev: 23.3.0
     hooks:
-    -   id: black 
+    -   id: black

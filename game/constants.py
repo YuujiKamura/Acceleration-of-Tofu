@@ -1,5 +1,4 @@
 import pygame
-import os
 
 # ゲームウィンドウの設定
 SCREEN_WIDTH = 1280
@@ -58,17 +57,22 @@ BENI_RED = (200, 50, 50)   # 紅生姜の赤色
 TOFU_WHITE = (245, 245, 240)  # 豆腐の白色
 
 # デフォルトのキーマッピング（Player 1）
+# P1=矢印キー+ZXCVなど、P2=WASD+FGERTY で分離
 DEFAULT_KEY_MAPPING_P1 = {
     pygame.K_UP: "up",
     pygame.K_DOWN: "down",
     pygame.K_LEFT: "left",
     pygame.K_RIGHT: "right",
     pygame.K_z: "weapon_a",
+    pygame.K_j: "weapon_a",
     pygame.K_x: "weapon_b",
-    pygame.K_SPACE: "hyper",  # スペースキーをハイパーに変更
-    pygame.K_LSHIFT: "dash",  # 左シフトをダッシュに変更
-    pygame.K_a: "special",
-    pygame.K_s: "shield",
+    pygame.K_k: "weapon_b",
+    pygame.K_SPACE: "hyper",
+    pygame.K_l: "hyper",
+    pygame.K_LSHIFT: "dash",
+    pygame.K_h: "dash",
+    pygame.K_c: "special",
+    pygame.K_v: "shield",
 }
 
 # デフォルトのキーマッピング（Player 2）
@@ -85,12 +89,8 @@ DEFAULT_KEY_MAPPING_P2 = {
     pygame.K_y: "shield",
 }
 
-# 実際のゲームで使用するキーマッピング（初期設定はデフォルトと同じ）
-KEY_MAPPING_P1 = DEFAULT_KEY_MAPPING_P1.copy()
-KEY_MAPPING_P2 = DEFAULT_KEY_MAPPING_P2.copy()
-
-# 旧式の互換性のためのマッピング（プレイヤー1のキーマッピングを使用）
-KEY_MAPPING = KEY_MAPPING_P1
+# 注: 実際のキーマッピングはGameクラスのインスタンス変数として管理する
+# KEY_MAPPING_P1, KEY_MAPPING_P2, KEY_MAPPINGグローバル変数は削除
 
 # 操作名の表示用日本語名
 ACTION_NAMES = {

@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 import pygame
 from game.game import Game
 from game.states import (
-    BaseState, TitleState, GameState, TrainingState, 
+    BaseState, TitleState, SingleVersusGameState, TrainingState, 
     AutoTestState, InstructionsState, OptionsState, 
     KeyConfigState, PauseState
 )
@@ -68,21 +68,21 @@ class TestEscKeyHandling(unittest.TestCase):
         self.assertTrue(True)
     
     def test_game_state_esc_key(self):
-        """GameStateでのESCキー処理をテスト"""
-        # GameStateのインスタンスを作成
-        game_state = GameState(self.game)
+        """SingleVersusGameStateでのESCキー処理をテスト"""
+        # SingleVersusGameStateのインスタンスを作成
+        game_state = SingleVersusGameState(self.game)
         
         # ESCキーイベントを処理
         game_state.handle_input(self.esc_event)
         
-        # 結果を検証: GameStateではESCキーでPauseStateに遷移するはず
+        # 結果を検証: SingleVersusGameStateではESCキーでPauseStateに遷移するはず
         self.game.change_state.assert_called_once()
         # 引数としてPauseStateが渡されていることを確認（インスタンスの型をチェック）
         self.assertIsInstance(self.game.change_state.call_args[0][0], PauseState)
     
     def test_pause_state_esc_key(self):
         """PauseStateでのESCキー処理をテスト"""
-        # 前の状態（GameState）をモック化
+        # 前の状態（SingleVersusGameState）をモック化
         previous_state = MagicMock()
         
         # PauseStateのインスタンスを作成
@@ -91,7 +91,7 @@ class TestEscKeyHandling(unittest.TestCase):
         # ESCキーイベントを処理
         pause_state.handle_input(self.esc_event)
         
-        # 結果を検証: PauseStateではESCキーで前の状態（GameState）に戻るはず
+        # 結果を検証: PauseStateではESCキーで前の状態（SingleVersusGameState）に戻るはず
         self.game.change_state.assert_called_once_with(previous_state)
     
     def test_options_state_esc_key(self):

@@ -5,7 +5,6 @@ import pygame
 import sys
 import os
 import json
-import time
 from pygame.locals import *
 
 # ゲームのモジュールをインポート

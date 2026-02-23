@@ -4,14 +4,182 @@
 import json
 import os
 import sys
-import time
 import pygame
 from pygame.locals import *
 import shutil
+import pytest
+from game.game import Game
+from game.states import KeyConfigState, TitleState, SingleVersusGameState
+from game.constants import SCREEN_WIDTH, SCREEN_HEIGHT, ACTION_NAMES
 
 # ゲームのモジュールをインポート
 from game.constants import *
-from game.game import Game
+
+class TestKeyConfigIntegration:
+    @pytest.fixture
+    def setup_game(self):
+        """テスト用のゲームインスタンスを準備"""
+        pygame.init()
+        screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        game = Game(screen)
+        yield game
+        pygame.quit()
+
+    @pytest.fixture
+    def test_config_file(self):
+        """テスト用のコンフィグファイル"""
+        config = {
+            "p1_controls": {
+                "up": pygame.K_w,
+                "down": pygame.K_s,
+                "left": pygame.K_a,
+                "right": pygame.K_d,
+                "weapon_a": pygame.K_j,
+                "weapon_b": pygame.K_k,
+                "dash": pygame.K_LSHIFT,
+                "shield": pygame.K_l,
+                "special": pygame.K_h,
+                "hyper": pygame.K_SPACE
+            },
+            "p2_controls": {
+                "up": pygame.K_UP,
+                "down": pygame.K_DOWN,
+                "left": pygame.K_LEFT,
+                "right": pygame.K_RIGHT,
+                "weapon_a": pygame.K_n,
+                "weapon_b": pygame.K_m,
+                "dash": pygame.K_RSHIFT,
+                "shield": pygame.K_COMMA,
+                "special": pygame.K_PERIOD,
+                "hyper": pygame.K_SLASH
+            }
+        }
+        
+        with open('test_key_config.json', 'w') as f:
+            json.dump(config, f)
+        
+        yield 'test_key_config.json'
+        
+        # テスト後にファイルを削除
+        if os.path.exists('test_key_config.json'):
+            os.remove('test_key_config.json')
+
+    def test_key_config_flow(self, setup_game, test_config_file):
+        """キーコンフィグの一連の流れをテスト"""
+        game = setup_game
+
+        # 1. 初期状態の確認
+        assert isinstance(game.current_state, TitleState)
+        
+        # キーコンフィグの初期読み込みを確認
+        assert game.key_mapping_p1 is not None
+        assert game.key_mapping_p2 is not None
+        assert len(game.key_mapping_p1) > 0
+        assert len(game.key_mapping_p2) > 0
+
+        # 2. キーコンフィグ画面への遷移
+        game.change_state(KeyConfigState(game))
+        assert isinstance(game.current_state, KeyConfigState)
+
+        # 3. キー設定の変更をシミュレート
+        new_key = pygame.K_t
+        
+        # キー入力待ち状態に設定
+        game.current_state.waiting_for_input = True
+        game.waiting_for_key_input = True
+        
+        # キー入力イベントを送信
+        event = pygame.event.Event(pygame.KEYDOWN, {'key': new_key})
+        game.current_state.handle_input(event)
+        
+        # 4. 設定の保存（ESCキーで自動的に保存される）
+        esc_event = pygame.event.Event(pygame.KEYDOWN, {'key': pygame.K_ESCAPE})
+        game.current_state.handle_input(esc_event)
+        
+        # 5. 設定ファイルが作成されたことを確認
+        assert os.path.exists('key_config.json')
+        
+        # 6. 設定を再読み込み
+        game.load_key_config()
+        
+        # 7. シングル対戦モードでの入力テスト
+        game.change_state(SingleVersusGameState(game))
+        assert isinstance(game.current_state, SingleVersusGameState)
+        
+        # キー入力をシミュレート
+        event = pygame.event.Event(pygame.KEYDOWN, {'key': new_key})
+        game.current_state.handle_input(event)
+        
+        # プレイヤーの状態が更新されていることを確認
+        assert game.player1 is not None
+        assert game.player2 is not None
+        
+        # キーマッピングが正しく機能していることを確認
+        # 新しいキーがマッピングに存在することを確認
+        key_found = False
+        for key, action in game.key_mapping_p1.items():
+            if key == new_key:
+                key_found = True
+                break
+        assert key_found, "新しく設定したキーがマッピングに存在しません"
+
+    def test_config_file_error_handling(self, setup_game):
+        """設定ファイルの異常系をテスト"""
+        game = setup_game
+        
+        # 1. 存在しないファイルの場合
+        if os.path.exists('key_config.json'):
+            os.remove('key_config.json')
+        
+        game.load_key_config()  # デフォルト設定が使用されるはず
+        assert game.key_mapping_p1 is not None
+        assert game.key_mapping_p2 is not None
+        
+        # 2. 不正なJSONファイルの場合
+        with open('key_config.json', 'w') as f:
+            f.write('invalid json')
+        
+        game.load_key_config()  # デフォルト設定が使用されるはず
+        assert game.key_mapping_p1 is not None
+        assert game.key_mapping_p2 is not None
+        
+        # テスト後にファイルを削除
+        if os.path.exists('key_config.json'):
+            os.remove('key_config.json')
+
+    def test_key_config_persistence(self, setup_game, test_config_file):
+        """キー設定の永続化をテスト"""
+        game = setup_game
+        
+        # 1. テスト用の設定を読み込み
+        game.load_key_config()
+        
+        # 最初のアクションを取得
+        first_action = next(iter(game.key_mapping_p1.values()))
+        original_key = None
+        for key, action in game.key_mapping_p1.items():
+            if action == first_action:
+                original_key = key
+                break
+        
+        assert original_key is not None
+        
+        # 2. 設定を変更
+        new_key = pygame.K_y
+        game.key_mapping_p1[new_key] = first_action
+        if original_key in game.key_mapping_p1:
+            del game.key_mapping_p1[original_key]
+        game.save_key_config()
+        
+        # 3. 新しいゲームインスタンスで設定を読み込み
+        new_game = Game(pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT)))
+        new_game.load_key_config()
+        
+        # 4. 設定が保持されていることを確認
+        assert new_key in new_game.key_mapping_p1
+        assert new_game.key_mapping_p1[new_key] == first_action
+        if original_key != new_key:  # 同じキーに変更した場合を除く
+            assert original_key not in new_game.key_mapping_p1
 
 class KeyConfigIntegrationTest:
     """キーコンフィグのすべての機能を統合テストするクラス"""
@@ -565,7 +733,7 @@ def fix_key_config():
             shutil.copy("key_config.json", "key_config.json.backup")
             print("既存の設定ファイルをバックアップしました")
             
-            print("\\n現在の設定:")
+            print("\n現在の設定:")
             if "p1" in config:
                 print(f"P1: {config['p1']}")
             else:
@@ -577,7 +745,7 @@ def fix_key_config():
                 print("P2の設定がありません")
                 
             # KEY_MAPPINGの状態を確認
-            print("\\n現在のKEY_MAPPING:")
+            print("\n現在のKEY_MAPPING:")
             print(f"KEY_MAPPING_P1: {KEY_MAPPING_P1}")
             print(f"KEY_MAPPING_P2: {KEY_MAPPING_P2}")
             print(f"KEY_MAPPING: {KEY_MAPPING}")
@@ -635,7 +803,7 @@ def fix_key_config():
             # 新しい設定を保存
             with open("key_config.json", "w") as f:
                 json.dump(new_config, f, indent=2)
-            print("\\n修正後の設定を保存しました。")
+            print("\n修正後の設定を保存しました。")
             
             # キーマッピングを更新
             # P1の設定
@@ -652,12 +820,12 @@ def fix_key_config():
             KEY_MAPPING.clear()
             KEY_MAPPING.update(KEY_MAPPING_P1)
             
-            print("\\n修正後のKEY_MAPPING:")
+            print("\n修正後のKEY_MAPPING:")
             print(f"KEY_MAPPING_P1: {KEY_MAPPING_P1}")
             print(f"KEY_MAPPING_P2: {KEY_MAPPING_P2}")
             print(f"KEY_MAPPING: {KEY_MAPPING}")
             
-            print("\\nキーコンフィグの修正が完了しました。")
+            print("\nキーコンフィグの修正が完了しました。")
             
         except Exception as e:
             print(f"設定の修正に失敗しました: {e}")

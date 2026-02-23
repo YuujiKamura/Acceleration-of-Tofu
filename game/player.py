@@ -1,18 +1,24 @@
 import math
 import pygame
 import random
+import time  # 時間管理のためにtimeモジュールを追加
 
 from game.constants import (
     PLAYER_SPEED, PLAYER_DASH_SPEED, DASH_RING_DURATION, DASH_COOLDOWN,
-    MAX_HEALTH, SHIELD_DURATION, SHIELD_COOLDOWN, HYPER_DURATION,
+    MAX_HEALTH, SHIELD_DURATION, HYPER_DURATION,
     MAX_HEAT, MAX_HYPER, HEAT_DECREASE_RATE, HYPER_DECREASE_RATE_AT_BORDER,
     HYPER_CONSUMPTION_RATE, HYPER_ACTIVATION_COST,  # 新しい定数を追加
-    BLUE, RED, WHITE, CYAN, MAGENTA, YELLOW, 
+    CYAN, MAGENTA, YELLOW, 
     NEGI_GREEN, BENI_RED, TOFU_WHITE,  # 新しい色をインポート
     WEAPON_TYPES
 )
 from game.weapon import Weapon
 from game.projectile import BeamProjectile, BallisticProjectile, MeleeProjectile
+
+# オーバーヒートクールダウン定数
+OVERHEAT_COOLDOWN = 120  # オーバーヒート後のクールダウンフレーム数
+# ハイパーゲージの最大値
+MAX_HYPER_GAUGE = MAX_HYPER  # MAX_HYPERを使用
 
 class DashRing:
     """ダッシュ時に残る軌跡のリング"""
@@ -63,7 +69,7 @@ class DashRing:
         center_x, center_y = int(self.x), int(self.y)
         
         # 描画対象の楕円の矩形
-        ellipse_rect = pygame.Rect(
+        pygame.Rect(
             center_x - ellipse_width // 2,
             center_y - ellipse_height // 2,
             ellipse_width,
@@ -157,10 +163,10 @@ class ShieldEffect:
                 end_angle = angle + 0.2
                 
                 # 弧の始点と終点を計算
-                start_x = x + math.cos(start_angle) * actual_radius
-                start_y = y + math.sin(start_angle) * actual_radius
-                end_x = x + math.cos(end_angle) * actual_radius
-                end_y = y + math.sin(end_angle) * actual_radius
+                x + math.cos(start_angle) * actual_radius
+                y + math.sin(start_angle) * actual_radius
+                x + math.cos(end_angle) * actual_radius
+                y + math.sin(end_angle) * actual_radius
                 
                 # セグメント間を結ぶ弧を描画
                 rect = pygame.Rect(
@@ -173,26 +179,31 @@ class ShieldEffect:
 
 class Player:
     """プレイヤークラス"""
-    def __init__(self, x, y, is_player1=True):
+    def __init__(self, x, y, is_player1=True, game=None):
         self.x = x
         self.y = y
-        self.radius = 10  # プレイヤーの当たり判定半径
+        # 初期位置を保存（リセット用）
+        self.initial_x = x
+        self.initial_y = y
+        self.radius = 15  # プレイヤーの当たり判定半径
         self.is_player1 = is_player1
         # 色を変更（プレイヤー1はネギ色、プレイヤー2は紅生姜色）
         self.color = NEGI_GREEN if is_player1 else BENI_RED
         # 四角形のサイズ（半径の2倍で正方形に）
-        self.square_size = self.radius * 2
+        self.square_size = 30
         
         # ステータス
         self.health = MAX_HEALTH
         self.heat = 0
         self.hyper_gauge = 0
+        self.hyper_duration = 0  # ハイパーモードの残り時間
         
         # 移動関連
         self.speed = PLAYER_SPEED
         self.dash_speed = PLAYER_DASH_SPEED
         self.is_dashing = False
         self.dash_cooldown = 0
+        self.dash_cooldown_max = 30
         self.dash_rings = []
         # 前回の位置を保存（移動方向計算用）
         self.prev_x = x
@@ -223,28 +234,99 @@ class Player:
         self.facing_angle = 0  # 相手の方向を向く角度
         
         # シールド関連
-        self.shield_duration_counter = 0  # シールド持続時間カウンター
+        self.shield_cooldown = 0  # シールド持続時間カウンター
+        self.shield_duration_counter = 0  # シールド持続時間のカウンター（テスト用）
         self.shield_effect = None  # シールドエフェクト
         
         # オーバーヒート状態フラグ
         self.is_overheated = False
-        self.overheated_threshold = MAX_HEAT * 0.7  # オーバーヒート解除閾値（70%）
+        self.overheat_cooldown = 0
         
         # 武器B用の連射関連変数
         self.weapon_b_burst_active = False  # 連射モードがアクティブかどうか
         self.weapon_b_burst_count = 0       # 現在の連射カウント
         self.weapon_b_burst_timer = 0       # 連射のタイマー
-        self.weapon_b_burst_delay = 3       # 発射間隔（フレーム数）
+        self.weapon_b_burst_delay = 5       # 発射間隔（フレーム数）
         self.weapon_b_burst_total = 10      # 合計発射数
         self.weapon_b_base_angle = 0        # 基準角度
         self.weapon_b_target = None         # 照準の対象
         self.is_special_spread_active = False  # スペシャルスプレッド弾モードかどうか
         
         # ゲームインスタンスへの参照（後でセットする）
-        self.game = None
+        self.game = game
         
-    def update(self, keys, arena, opponent):
+        # デバッグログ用の変数
+        self.last_debug_time = 0  # 最後にログを出力した時間
+        self.debug_interval = 1.0  # ログ出力の間隔（秒、0.5秒から1.0秒に変更）
+        self.debug_mode = False  # デバッグモードフラグ（デフォルトでオフ）
+        
+        # テスト用のキー状態を保持する辞書
+        self.key_states = {
+            "up": False, 
+            "down": False, 
+            "left": False, 
+            "right": False,
+            "weapon_a": False, 
+            "weapon_b": False,
+            "shield": False,
+            "dash": False,
+            "hyper": False,
+            "special": False
+        }
+        
+    def reset(self):
+        """プレイヤーの状態をリセットする"""
+        # 位置を初期値に戻す
+        self.x = self.initial_x
+        self.y = self.initial_y
+        
+        # 移動状態をリセット
+        self.dx = 0
+        self.dy = 0
+        self.speed = PLAYER_SPEED
+        self.is_dashing = False
+        self.dash_cooldown = 0
+        self.dash_direction_x = 0
+        self.dash_direction_y = 0
+        self.dash_ring_counter = 0
+        self.dash_rings = []
+        
+        # 武器関連のクールダウンをリセット
+        self.shoot_cooldown = 0
+        
+        # 各種ゲージをリセット
+        self.health = MAX_HEALTH
+        self.heat = 0
+        self.is_overheated = False
+        self.overheat_cooldown = OVERHEAT_COOLDOWN
+        self.hyper_gauge = MAX_HYPER / 2  # 起動時は半分から始める (MAX_HYPER_GAUGEをMAX_HYPERに変更)
+        self.is_hyper_active = False
+        self.hyper_duration = 0
+        
+        # シールド関連の状態をリセット
+        self.is_shield_active = False
+        self.shield_cooldown = 0
+        self.shield_duration_counter = 0
+        self.shield_effect = None
+        
+        # 武器B連射モードの状態をリセット
+        self.weapon_b_burst_active = False
+        self.weapon_b_burst_count = 0
+        self.weapon_b_burst_timer = 0
+        
+        # すべてのキー状態をリセット
+        self.key_states = {key: False for key in self.key_states}
+        
+    def update(self, arena, opponent):
         """プレイヤーの状態を更新"""
+        # デバッグログ (プレイヤー1のみ、1秒に1回)
+        current_time = time.time()
+        if self.is_player1 and self.debug_mode and (current_time - self.last_debug_time) >= self.debug_interval:
+            active_keys = [k for k, v in self.key_states.items() if v]
+            if active_keys:  # アクティブなキーがある場合のみ出力
+                print(f"[DEBUG P1] active_keys={active_keys}")
+            self.last_debug_time = current_time
+        
         # 相手の方向を計算
         dx = opponent.x - self.x
         dy = opponent.y - self.y
@@ -254,8 +336,8 @@ class Player:
         self.prev_x = self.x
         self.prev_y = self.y
         
-        # 移動処理
-        self.move(keys, arena)
+        # 移動処理 (self.key_states を渡す)
+        self.move(self.key_states, arena)
         
         # 移動距離を計算して速度ベースのヒート上昇を適用
         distance_moved = math.sqrt((self.x - self.prev_x)**2 + (self.y - self.prev_y)**2)
@@ -300,14 +382,14 @@ class Player:
                     self.weapon_b_burst_active = False  # すべて発射したら連射モード終了
                     self.is_special_spread_active = False  # スペシャルモードもリセット
             
-        # ヒート減少
-        if self.heat > 0:
+        # ヒート減少（ダッシュ中は減少しない）
+        if self.heat > 0 and not self.is_dashing:
             self.heat -= HEAT_DECREASE_RATE
             
             # オーバーヒート状態の更新
             if self.heat >= MAX_HEAT:
                 self.is_overheated = True
-            elif self.is_overheated and self.heat <= self.overheated_threshold:
+            elif self.is_overheated and self.heat <= self.overheat_cooldown:
                 self.is_overheated = False
             
         # ハイパーモードの更新
@@ -328,8 +410,9 @@ class Player:
                 self.hyper_gauge -= HYPER_DECREASE_RATE_AT_BORDER
                 
         # シールド処理
-        if keys["shield"] and self.shield_duration_counter <= 0 and self.hyper_gauge >= 100:
+        if self.key_states["shield"] and self.shield_cooldown <= 0 and self.hyper_gauge >= 100:
             # シールドボタンが押されたとき、持続時間カウンターを設定
+            self.shield_cooldown = SHIELD_DURATION
             self.shield_duration_counter = SHIELD_DURATION
             self.is_shield_active = True
             # シールドエフェクトを作成
@@ -338,53 +421,78 @@ class Player:
             self.hyper_gauge -= 100
             
         # シールド持続時間の更新
-        if self.shield_duration_counter > 0:
-            self.shield_duration_counter -= 1
+        if self.shield_cooldown > 0:
+            self.shield_cooldown -= 1
+            self.shield_duration_counter = self.shield_cooldown
             
             # シールドエフェクトの更新
             if self.shield_effect:
                 self.shield_effect.update()
                 
             # カウンターが0になったらシールドを無効化
-            if self.shield_duration_counter <= 0:
+            if self.shield_cooldown <= 0:
                 self.is_shield_active = False
+                self.shield_duration_counter = 0
                 self.shield_effect = None
         
-        # 武器処理
-        self.handle_weapons(keys, opponent)
+        # 武器処理 (self.key_states を渡す)
+        self.handle_weapons(self.key_states, opponent)
         
-    def move(self, keys, arena):
+    def move(self, key_states, arena):
         """移動処理"""
         dx = 0
         dy = 0
         
-        # キー入力に応じて移動方向を決定
-        if keys["up"]:
+        # キー入力に応じて移動方向を決定 (key_states を参照)
+        if key_states["up"]:
             dy -= 1
-        if keys["down"]:
+        if key_states["down"]:
             dy += 1
-        if keys["left"]:
+        if key_states["left"]:
             dx -= 1
-        if keys["right"]:
+        if key_states["right"]:
             dx += 1
             
         # 入力があったかどうか（カーブに使用）
         has_input = dx != 0 or dy != 0
+        
+        # デバッグ出力（移動方向）
+        if self.is_player1 and self.debug_mode and has_input:
+            # 移動方向を言葉で表現
+            direction = ""
+            if dy < 0 and dx == 0:
+                direction = "上"
+            elif dy < 0 and dx > 0:
+                direction = "右上"
+            elif dy == 0 and dx > 0:
+                direction = "右"
+            elif dy > 0 and dx > 0:
+                direction = "右下"
+            elif dy > 0 and dx == 0:
+                direction = "下"
+            elif dy > 0 and dx < 0:
+                direction = "左下"
+            elif dy == 0 and dx < 0:
+                direction = "左"
+            elif dy < 0 and dx < 0:
+                direction = "左上"
             
+            print(f"[DEBUG P1] 移動方向: {direction}")
+        
         # 斜め移動時に速度が速くならないよう正規化
         if dx != 0 and dy != 0:
             length = math.sqrt(dx*dx + dy*dy)
             dx /= length
             dy /= length
             
-        # ヒートゲージが最大に達したらダッシュ強制終了
+        # ヒートゲージが最大に達したらダッシュ強制終了してオーバーヒート状態にする
         if self.heat >= MAX_HEAT:
             self.is_dashing = False
+            self.is_overheated = True
             
-        # ダッシュ処理
-        # 条件追加: ヒートゲージが200%未満であることがダッシュ開始条件
+        # ダッシュ処理 (key_states を参照)
         heat_ok_for_dash = self.heat < 200
-        if keys["dash"] and self.dash_cooldown <= 0 and not self.is_dashing and has_input and heat_ok_for_dash:
+        if key_states["dash"] and self.dash_cooldown <= 0 and not self.is_dashing and has_input and heat_ok_for_dash:
             # ダッシュ開始時の処理
             self.is_dashing = True
             # ダッシュ開始時の方向を保存
@@ -397,16 +505,17 @@ class Player:
             self.dash_rings.append(DashRing(self.x, self.y, DASH_RING_DURATION, dx, dy))
             # ダッシュリングカウンターをリセット
             self.dash_ring_counter = 0
-        elif not keys["dash"]:
+        elif not key_states["dash"]:
             self.is_dashing = False
             
         # ダッシュ中の処理
         if self.is_dashing:
             # ヒートゲージの上昇はupdate()メソッドで速度ベースで行うため、ここでは行わない
             
-            # ヒートゲージが最大に達したらダッシュ強制終了
+            # ヒートゲージが最大に達したらダッシュ強制終了してオーバーヒート状態にする
             if self.heat >= MAX_HEAT:
                 self.is_dashing = False
+                self.is_overheated = True
             
             # 方向転換処理
             if has_input:
@@ -449,22 +558,22 @@ class Player:
         if self.is_dashing:
             self.dash_cooldown = DASH_COOLDOWN
             
-    def handle_weapons(self, keys, opponent):
+    def handle_weapons(self, key_states, opponent):
         """武器処理"""
         # シールド中は攻撃できない
         if self.is_shield_active:
             return
             
-        # 武器A
-        if keys["weapon_a"] and self.shoot_cooldown <= 0:
+        # 武器A (key_states を参照)
+        if key_states["weapon_a"] and self.shoot_cooldown <= 0:
             weapon = self.weapons["weapon_a"]
             projectile = self.create_projectile(weapon, opponent)
             if projectile and self.game:
                 self.game.add_projectile(projectile)
             self.shoot_cooldown = weapon.cooldown
             
-        # 武器B
-        if keys["weapon_b"] and self.shoot_cooldown <= 0 and not self.weapon_b_burst_active:
+        # 武器B (key_states を参照)
+        if key_states["weapon_b"] and self.shoot_cooldown <= 0 and not self.weapon_b_burst_active:
             weapon = self.weapons["weapon_b"]
             
             # 連射モードを開始
@@ -486,8 +595,8 @@ class Player:
             # クールダウンを設定
             self.shoot_cooldown = weapon.cooldown
             
-        # スペシャル+武器B
-        if keys["special"] and keys["weapon_b"] and self.shoot_cooldown <= 0:
+        # スペシャル+武器B (key_states を参照)
+        if key_states["special"] and key_states["weapon_b"] and self.shoot_cooldown <= 0:
             # ハイパーゲージが100以上ある場合のみ発動
             if self.hyper_gauge >= 100:
                 weapon = self.weapons["special_b"]
@@ -525,12 +634,12 @@ class Player:
                     self.game.add_projectile(projectile)
                 self.shoot_cooldown = weapon.cooldown
             
-        # ハイパーモード発動（ハイパーキーを押してゲージが十分ある場合）
-        if keys["hyper"] and not self.is_hyper_active and self.hyper_gauge >= HYPER_ACTIVATION_COST:
+        # ハイパーモード発動 (key_states を参照)
+        if key_states["hyper"] and not self.is_hyper_active and self.hyper_gauge >= HYPER_ACTIVATION_COST:
             self.activate_hyper()
             
-        # ハイパーモード中のレーザー攻撃（スペースキー/ハイパーキー押下中）
-        if self.is_hyper_active and keys["hyper"] and self.shoot_cooldown <= 0:
+        # ハイパーモード中のレーザー攻撃 (key_states を参照)
+        if self.is_hyper_active and key_states["hyper"] and self.shoot_cooldown <= 0:
             if not self.has_fired_hyper_laser:
                 # 最初の一発は強力なレーザー
                 weapon = Weapon("ハイパーレーザー", WEAPON_TYPES["BEAM"], 50, 15)
@@ -749,6 +858,46 @@ class Player:
             # 寿命を4倍に延長
             projectile2.lifetime *= 4
             self.game.add_projectile(projectile2)
+
+    def handle_key_event(self, event):
+        """キーイベントを処理する"""
+        # イベントタイプに基づく処理
+        key_map = self.game.key_mapping_p1 if self.is_player1 else self.game.key_mapping_p2
+
+        if event.type == pygame.KEYDOWN:
+            # キーが押された場合
+            if event.key in key_map:
+                action = key_map[event.key]
+                if action in self.key_states:
+                    self.key_states[action] = True
+                    # デバッグログ
+                    if self.is_player1 and self.debug_mode:
+                        print(f"[DEBUG P1] キー押下: {pygame.key.name(event.key)} -> {action}")
+
+            # ESCキーが押された場合（ポーズ処理など）
+            if event.key == pygame.K_ESCAPE:
+                # ESCキーの処理はGameStateで行うため、ここでは何もしない
+                pass
+
+        elif event.type == pygame.KEYUP:
+            # キーが離された場合
+            if event.key in key_map:
+                action = key_map[event.key]
+                if action in self.key_states:
+                    self.key_states[action] = False
+                    # デバッグログ
+                    if self.is_player1 and self.debug_mode:
+                        print(f"[DEBUG P1] キー解放: {pygame.key.name(event.key)} -> {action}")
+        
+        # 以下のブロックを上記の条件付きデバッグログに置き換えたため削除
+        # デバッグログ (プレイヤー1のみ、0.5秒に1回)
+        # current_time = time.time()
+        # if self.is_player1 and (current_time - self.last_debug_time) >= self.debug_interval:
+        #     active_keys = [k for k, v in self.key_states.items() if v]
+        #     if active_keys:  # アクティブなキーがある場合のみ出力
+        #         print(f"[DEBUG P1] Event: {pygame.event.event_name(event.type)}, Key: {pygame.key.name(event.key)}")
+        #         print(f"[DEBUG P1] active_keys={active_keys}")
+        #     self.last_debug_time = current_time
 
 # ハイパーエフェクトクラスを追加
 class HyperEffect:
