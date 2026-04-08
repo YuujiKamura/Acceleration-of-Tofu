@@ -2,16 +2,25 @@ import pygame
 import math
 import json
 import os
+import random
 from game.constants import (
     ARENA_CENTER_X, ARENA_CENTER_Y, ACTION_NAMES,
     SCREEN_WIDTH, SCREEN_HEIGHT, DEFAULT_KEY_MAPPING_P1, DEFAULT_KEY_MAPPING_P2,
-    MAX_HEALTH, JAPANESE_FONT_NAMES, DEFAULT_FONT
+    MAX_HEALTH, JAPANESE_FONT_NAMES, DEFAULT_FONT,
+    TOFU_WHITE, YELLOW, MAGENTA, CYAN,
+    SHIELD_DURATION, DASH_COOLDOWN, PLAYER_SPEED, PLAYER_DASH_SPEED,
+    MAX_HEAT, MAX_HYPER,
+    HYPER_CONSUMPTION_RATE, HYPER_DECREASE_RATE_AT_BORDER, HYPER_ACTIVATION_COST,
+    HYPER_DURATION, DASH_RING_DURATION, HEAT_DECREASE_RATE,
+    WEAPON_TYPES
 )
 from game.player import Player
 from game.arena import Arena
 from game.hud import HUD
 from game.ai import AIController
 from game.states import TitleState
+from game.weapon import Weapon
+from game.projectile import BeamProjectile, BallisticProjectile, MeleeProjectile
 
 class Game:
     def __init__(self, screen, debug=False, enable_audio=True, enable_title_background=True):
@@ -311,16 +320,12 @@ class Game:
                 overlap = min_dist - distance
             
             # 半分ずつ押し戻す基本ロジックを、水分量（重さ）に応じて調整
-            # 水分量が多いほど重く、動かされにくい
-            # w1, w2 は重さの比率 (0.5 ~ 1.0)
             w1 = 0.5 + (self.player1.water_level / 100.0) * 0.5
             w2 = 0.5 + (self.player2.water_level / 100.0) * 0.5
             
-            # 合計の重さに対する比率で押し戻し量を決める
-            # 軽い方(wが小さい方)がより大きく動く
             total_w = w1 + w2
-            ratio1 = w2 / total_w # player2が重いほどplayer1が大きく動く
-            ratio2 = w1 / total_w # player1が重いほどplayer2が大きく動く
+            ratio1 = w2 / total_w
+            ratio2 = w1 / total_w
             
             self.player1.x += math.cos(angle) * (overlap * ratio1)
             self.player1.y += math.sin(angle) * (overlap * ratio1)
@@ -328,33 +333,50 @@ class Game:
             self.player2.y -= math.sin(angle) * (overlap * ratio2)
 
         # プレイヤーと弾の衝突判定
+        from game.projectile import SoybeanCollectible
         for proj in self.projectiles[:]:
+            # 豆（コレクタブル）の回収判定
+            if isinstance(proj, SoybeanCollectible):
+                # プレイヤー1の回収
+                dist1 = math.sqrt((self.player1.x - proj.x)**2 + (self.player1.y - proj.y)**2)
+                if dist1 < (self.player1.radius + proj.radius + 10):
+                    self.player1.beans = min(100.0, self.player1.beans + 5.0)
+                    proj.is_dead = True
+                    continue
+                # プレイヤー2の回収
+                dist2 = math.sqrt((self.player2.x - proj.x)**2 + (self.player2.y - proj.y)**2)
+                if dist2 < (self.player2.radius + proj.radius + 10):
+                    self.player2.beans = min(100.0, self.player2.beans + 5.0)
+                    proj.is_dead = True
+                    continue
+                continue
+
             # プレイヤー1との衝突
             if proj.owner != self.player1 and self.player1.collides_with(proj):
                 damage = proj.damage
-                # ヒートに応じてダメージ増加
                 if not self.player1.is_shielding():
                     damage = damage * (1 + self.player1.heat / 100)
                     self.player1.take_damage(damage)
+                    # 豆をドロップ
+                    self.spawn_beans(self.player1.x, self.player1.y, 3)
                     proj.on_hit(self.player1)
                     if proj in self.projectiles:
                         self.projectiles.remove(proj)
                 else:
-                    # シールド中は弾を反射
                     proj.reflect(self.player1)
                     
             # プレイヤー2との衝突
             elif proj.owner != self.player2 and self.player2.collides_with(proj):
                 damage = proj.damage
-                # ヒートに応じてダメージ増加
                 if not self.player2.is_shielding():
                     damage = damage * (1 + self.player2.heat / 100)
                     self.player2.take_damage(damage)
+                    # 豆をドロップ
+                    self.spawn_beans(self.player2.x, self.player2.y, 3)
                     proj.on_hit(self.player2)
                     if proj in self.projectiles:
                         self.projectiles.remove(proj)
                 else:
-                    # シールド中は弾を反射
                     proj.reflect(self.player2)
     
     def draw(self):
@@ -365,92 +387,61 @@ class Game:
         """サーフェスにゲーム画面を描画（アドバタイズモード用）"""
         # バックバッファを作成
         buffer = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        buffer.fill((0, 0, 0))  # 黒で初期化
+        buffer.fill((0, 0, 0))
 
-        # プレイヤー間の距離を計算
         dx = self.player1.x - self.player2.x
         dy = self.player1.y - self.player2.y
         distance = math.sqrt(dx*dx + dy*dy)
         
-        # 距離に基づいてズーム率を計算
-        min_distance = 150  # これ以下の距離では最大ズーム
-        max_distance = 400  # これ以上の距離では最小ズーム
-        max_zoom = 1.5      # 最大ズーム率
-        min_zoom = 1.0      # 最小ズーム率
+        min_distance = 150
+        max_distance = 400
+        max_zoom = 1.5
+        min_zoom = 1.0
         
-        # 目標ズーム率の計算
         if distance <= min_distance:
             current_zoom = max_zoom
         elif distance >= max_distance:
             current_zoom = min_zoom
         else:
-            # 線形補間でズーム率を決定
             ratio = (distance - min_distance) / (max_distance - min_distance)
             current_zoom = max_zoom - ratio * (max_zoom - min_zoom)
         
-        # アリーナの描画（バッファに）
         self.arena.draw(buffer)
-        
-        # 弾の描画（バッファに）
         for proj in self.projectiles:
             proj.draw(buffer)
-        
-        # プレイヤーの描画（バッファに）
         self.player1.draw(buffer)
         self.player2.draw(buffer)
-        
-        # エフェクトの描画（バッファに）
         for effect in self.effects:
             effect.draw(buffer)
         
-        # プレイヤーの中間点を計算
         center_x = (self.player1.x + self.player2.x) / 2
         center_y = (self.player1.y + self.player2.y) / 2
         
-        # ズーム後のサイズを計算
-        zoomed_width = int(SCREEN_WIDTH * current_zoom)
-        zoomed_height = int(SCREEN_HEIGHT * current_zoom)
-        
-        # ズーム中心点からの切り出し位置を計算
         clip_x = int(center_x - SCREEN_WIDTH / (2 * current_zoom))
         clip_y = int(center_y - SCREEN_HEIGHT / (2 * current_zoom))
         
-        # 切り出し位置がスクリーン範囲内に収まるよう調整
-        if clip_x < 0:
-            clip_x = 0
-        if clip_y < 0:
-            clip_y = 0
+        if clip_x < 0: clip_x = 0
+        if clip_y < 0: clip_y = 0
         if clip_x + int(SCREEN_WIDTH / current_zoom) > SCREEN_WIDTH:
             clip_x = max(0, SCREEN_WIDTH - int(SCREEN_WIDTH / current_zoom))
         if clip_y + int(SCREEN_HEIGHT / current_zoom) > SCREEN_HEIGHT:
             clip_y = max(0, SCREEN_HEIGHT - int(SCREEN_HEIGHT / current_zoom))
         
-        # 切り出しサイズがスクリーンを超えないよう調整
         clip_width = min(int(SCREEN_WIDTH / current_zoom), SCREEN_WIDTH - clip_x)
         clip_height = min(int(SCREEN_HEIGHT / current_zoom), SCREEN_HEIGHT - clip_y)
         
-        # バッファから領域を切り出し
         try:
             clip_area = pygame.Rect(clip_x, clip_y, clip_width, clip_height)
             clipped_buffer = buffer.subsurface(clip_area)
-            
-            # 切り出した領域をズーム
             zoomed_width = int(clip_width * current_zoom)
             zoomed_height = int(clip_height * current_zoom)
             zoomed_buffer = pygame.transform.scale(clipped_buffer, (zoomed_width, zoomed_height))
-            
-            # 指定されたサーフェスに描画
-            surface.fill((0, 0, 0))  # サーフェスをクリア
-            
-            # ズームした画像をサーフェスの中央に配置
+            surface.fill((0, 0, 0))
             dest_x = int(SCREEN_WIDTH/2 - zoomed_width/2)
             dest_y = int(SCREEN_HEIGHT/2 - zoomed_height/2)
             surface.blit(zoomed_buffer, (dest_x, dest_y))
-        except ValueError as e:
-            # 切り出し範囲が不正な場合はバックアップとしてそのまま描画
+        except ValueError:
             surface.blit(buffer, (0, 0))
-        
-        # HUDは描画しない（アドバタイズモードでは不要）
     
     def add_projectile(self, projectile):
         """弾を追加"""
@@ -459,6 +450,14 @@ class Game:
     def add_effect(self, effect):
         """エフェクトを追加"""
         self.effects.append(effect)
+    
+    def spawn_beans(self, x, y, count):
+        """指定した場所に豆をドロップする"""
+        from game.projectile import SoybeanCollectible
+        for _ in range(count):
+            bx = x + random.uniform(-20, 20)
+            by = y + random.uniform(-20, 20)
+            self.projectiles.append(SoybeanCollectible(bx, by))
     
     def reset_players(self):
         """プレイヤーの状態をリセット"""

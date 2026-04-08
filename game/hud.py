@@ -162,10 +162,34 @@ class HUD:
         water_text_rect.topleft = (water_x + water_width + 10, water_y)
         screen.blit(water_text, water_text_rect)
 
+        # 豆量ゲージ (茶色系)
+        bean_width = 150
+        bean_height = 10
+        bean_x = x
+        bean_y = y + 135
+        bean_percent = min(1.0, player.beans / 100.0)
+        pygame.draw.rect(screen, GRAY, (bean_x, bean_y, bean_width, bean_height))
+        pygame.draw.rect(screen, (139, 69, 19), (bean_x, bean_y, bean_width * bean_percent, bean_height))
+        pygame.draw.rect(screen, WHITE, (bean_x, bean_y, bean_width, bean_height), 1)
+        bean_text = self.font.render(f"豆: {int(player.beans)}%", True, WHITE)
+        screen.blit(bean_text, (bean_x + bean_width + 10, bean_y - 5))
+
+        # 熟成度ゲージ (黄金色系)
+        aging_width = 150
+        aging_height = 10
+        aging_x = x
+        aging_y = y + 155
+        aging_percent = min(1.0, player.aging / 100.0)
+        pygame.draw.rect(screen, GRAY, (aging_x, aging_y, aging_width, aging_height))
+        pygame.draw.rect(screen, (255, 215, 0), (aging_x, aging_y, aging_width * aging_percent, aging_height))
+        pygame.draw.rect(screen, WHITE, (aging_x, aging_y, aging_width, aging_height), 1)
+        aging_text = self.font.render(f"熟成: {int(player.aging)}%", True, WHITE)
+        screen.blit(aging_text, (aging_x + aging_width + 10, aging_y - 5))
+        
         # ハイパーモード中表示
         if hasattr(player, 'is_hyper_active') and player.is_hyper_active:
             status_text = self.font_large.render("ハイパーモード発動中! (ダメージ2倍)", True, YELLOW)
             status_rect = status_text.get_rect()
-            status_rect.topleft = (x, y + 140)
+            status_rect.topleft = (x, y + 180)
             screen.blit(status_text, status_rect)
  

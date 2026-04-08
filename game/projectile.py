@@ -164,4 +164,31 @@ class MeleeProjectile(Projectile):
         """近接攻撃ヒット時の処理"""
         super().on_hit(target)
         # ハイパーゲージが大きく増加
-        self.owner.hyper_gauge = min(MAX_HYPER, self.owner.hyper_gauge + 15) 
+        self.owner.hyper_gauge = min(MAX_HYPER, self.owner.hyper_gauge + 15)
+
+class SoybeanCollectible(Projectile):
+    """回収可能な豆（おから）"""
+    def __init__(self, x, y):
+        # 弾ではないので angle=0, damage=0, owner=None
+        super().__init__(x, y, 0, 0, None)
+        self.speed = 0
+        self.radius = 4
+        self.lifetime = 300 # 5秒間存在
+        self.color = (210, 180, 140) # 薄茶色
+        
+    def update(self):
+        """状態更新（ふわふわ漂う）"""
+        self.lifetime -= 1
+        if self.lifetime <= 0:
+            self.is_dead = True
+        
+        # 少しだけ動く（ランダムな微動）
+        import random
+        self.x += random.uniform(-0.5, 0.5)
+        self.y += random.uniform(-0.5, 0.5)
+
+    def draw(self, screen):
+        """描画"""
+        pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), self.radius)
+        # 縁取り
+        pygame.draw.circle(screen, WHITE, (int(self.x), int(self.y)), self.radius, 1)

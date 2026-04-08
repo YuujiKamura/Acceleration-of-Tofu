@@ -57,8 +57,13 @@ class TestGameIntegration:
         # プレイヤー1のHPが減少していることを確認
         assert game.player1.health < 1000  # MAX_HEALTHが1000に変更されたため修正
         
-        # 弾が消えていることを確認
-        assert len(game.projectiles) == 0
+        # 弾が消えていることを確認 (ただし、代わりに豆（おから）が3つ生成されている)
+        # SoybeanCollectible も projectiles に追加されるため、その数を考慮
+        from game.projectile import SoybeanCollectible
+        bean_count = len([p for p in game.projectiles if isinstance(p, SoybeanCollectible)])
+        assert bean_count == 3
+        # 元の攻撃弾（BeamProjectile等）は消えているはず
+        assert len(game.projectiles) == bean_count
     
     def test_player_shield_blocks_projectile(self, setup_game):
         """シールドが弾をブロックするテスト"""

@@ -188,6 +188,10 @@ class Player:
         self.base_radius = 15  # 基本の当たり判定半径
         self.radius = self.base_radius
         self.water_level = 100.0 # 水分量 (%)
+        self.beans = 100.0       # 豆の量 (%)
+        self.aging = 0.0         # 熟成度 (0.0 - 100.0)
+        self.is_fermented = False # 発酵状態 (納豆モード)
+        self.ferment_particles = [] # 発酵エフェクト用
         self.is_player1 = is_player1
         # 色を変更（プレイヤー1はネギ色、プレイヤー2は紅生姜色）
         self.color = NEGI_GREEN if is_player1 else BENI_RED
@@ -347,6 +351,29 @@ class Player:
         dx = opponent.x - self.x
         dy = opponent.y - self.y
         self.facing_angle = math.atan2(dy, dx)
+        
+        # 熟成度の更新 (時間経過)
+        self.aging = min(100.0, self.aging + 0.02) # 1フレームにつき0.02%熟成 (約83秒で最大)
+        if self.aging >= 100.0 and not self.is_fermented:
+            self.is_fermented = True
+            if self.game and "hyper" in self.game.sounds:
+                self.game.sounds["hyper"].play() # 発酵時のSE
+
+        # 発酵エフェクト（糸を引くパーティクル）の生成
+        if self.is_fermented:
+            import random
+            if random.random() < 0.3: # 30%の確率で生成
+                self.ferment_particles.append({
+                    "x": self.x + random.uniform(-10, 10),
+                    "y": self.y + random.uniform(-10, 10),
+                    "life": 30
+                })
+        
+        # パーティクルの更新
+        for p in self.ferment_particles[:]:
+            p["life"] -= 1
+            if p["life"] <= 0:
+                self.ferment_particles.remove(p)
         
         # 移動前の位置を保存
         self.prev_x = self.x
@@ -570,6 +597,15 @@ class Player:
             
         # 速度を適用
         speed = self.dash_speed if self.is_dashing else self.speed
+        
+        # 発酵（粘り）オーラによる減速
+        # 相手が発酵状態かつ近い場合、速度を大幅に下げる
+        opponent = self.game.player2 if self.is_player1 else self.game.player1
+        if opponent.is_fermented:
+            dist = math.sqrt((self.x - opponent.x)**2 + (self.y - opponent.y)**2)
+            if dist < 100: # 100ピクセル以内
+                speed *= 0.4 # 60%減速
+        
         if self.is_dashing:
             # ダッシュ中は保存した方向に移動
             move_x = self.dash_direction_x * speed
@@ -598,12 +634,16 @@ class Player:
             return
             
         # 武器A (key_states を参照)
-        if key_states["weapon_a"] and self.shoot_cooldown <= 0:
+        if key_states["weapon_a"] and self.shoot_cooldown <= 0 and self.beans > 0:
             weapon = self.weapons["weapon_a"]
+            # 熟成度に応じたダメージ倍率 (1.0 - 2.0)
+            damage_mult = 1.0 + (self.aging / 100.0)
             projectile = self.create_projectile(weapon, opponent)
             if projectile and self.game:
+                projectile.damage *= damage_mult
                 self.game.add_projectile(projectile)
             self.shoot_cooldown = weapon.cooldown
+            self.beans = max(0.0, self.beans - 2.0) # 豆を消費
             
         # 武器B (key_states を参照)
         if key_states["weapon_b"] and self.shoot_cooldown <= 0 and not self.weapon_b_burst_active:
@@ -753,6 +793,8 @@ class Player:
         # シールド中はダメージを受けない
         if not self.is_shield_active:
             self.health -= amount
+            # ダメージを受けると豆（実体）も削れる
+            self.beans = max(0.0, self.beans - amount * 0.5)
             # ハイパーゲージが増加（amount/10からamount/5に増加）
             self.hyper_gauge = min(MAX_HYPER, self.hyper_gauge + amount / 5)
             
@@ -801,13 +843,34 @@ class Player:
             color = MAGENTA if self.is_player1 else YELLOW
             
         # 白い四角形（豆腐）
+        # 熟成度に応じて色を黄色（黄金色）に近づける
+        aging_factor = self.aging / 100.0
+        # TOFU_WHITE (255, 255, 255) -> Golden (255, 215, 0)
+        r = 255
+        g = int(255 - (255 - 215) * aging_factor)
+        b = int(255 - 255 * aging_factor)
+        aging_color = (r, g, b)
+        
+        # 発酵状態なら納豆色に
+        if self.is_fermented:
+            aging_color = (139, 69, 19) # Natto Brown
+        
         base_rect = pygame.Rect(
             int(self.x - self.square_size/2),
             int(self.y - self.square_size/2),
             self.square_size,
             self.square_size
         )
-        pygame.draw.rect(screen, TOFU_WHITE, base_rect)
+        pygame.draw.rect(screen, aging_color, base_rect)
+
+        # 発酵パーティクル（糸）の描画
+        for p in self.ferment_particles:
+            alpha = int(255 * (p["life"] / 30.0))
+            # PygameのdrawはRGBAを直接扱えない場合があるため簡易的に
+            p_color = (210, 180, 140) # 糸の色
+            pygame.draw.circle(screen, p_color, (int(p["x"]), int(p["y"])), 2)
+            # 糸っぽく本体と繋ぐ
+            pygame.draw.line(screen, p_color, (int(self.x), int(self.y)), (int(p["x"]), int(p["y"])), 1)
         
         # 四角形の上に色付きの線（ネギまたは紅生姜）
         border_rect = pygame.Rect(
