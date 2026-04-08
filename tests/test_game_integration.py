@@ -125,8 +125,8 @@ class TestGameIntegration:
         # エフェクトをゲームに追加
         game.effects.append(mock_effect)
         
-        # 直接update_game_elementsを呼び出す
-        game.update_game_elements()
+        # 直接update_gameplay_elementsを呼び出す
+        game.update_gameplay_elements()
         
         # updateメソッドが呼ばれたことを確認
         mock_effect.update.assert_called_once()
@@ -135,7 +135,7 @@ class TestGameIntegration:
         mock_effect.is_dead = True
         
         # 再度更新処理
-        game.update_game_elements()
+        game.update_gameplay_elements()
         
         # エフェクトが削除されたことを確認
         assert len(game.effects) == 0

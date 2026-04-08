@@ -294,6 +294,31 @@ class Game:
         
     def handle_collisions(self):
         """衝突判定処理"""
+        # プレイヤー同士の衝突判定
+        dx = self.player1.x - self.player2.x
+        dy = self.player1.y - self.player2.y
+        distance = math.sqrt(dx*dx + dy*dy)
+        min_dist = self.player1.radius + self.player2.radius
+        
+        if distance < min_dist:
+            # 押し戻し処理
+            if distance == 0:
+                # 完全に重なっている場合はランダムな方向に
+                angle = random.uniform(0, 2 * math.pi)
+                overlap = min_dist
+            else:
+                angle = math.atan2(dy, dx)
+                overlap = min_dist - distance
+            
+            # 半分ずつ押し戻す
+            push_x = math.cos(angle) * (overlap / 2)
+            push_y = math.sin(angle) * (overlap / 2)
+            
+            self.player1.x += push_x
+            self.player1.y += push_y
+            self.player2.x -= push_x
+            self.player2.y -= push_y
+
         # プレイヤーと弾の衝突判定
         for proj in self.projectiles[:]:
             # プレイヤー1との衝突

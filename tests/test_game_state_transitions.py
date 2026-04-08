@@ -14,22 +14,22 @@ from game.constants import DEFAULT_KEY_MAPPING_P1, DEFAULT_KEY_MAPPING_P2
 from game.states import TitleState, TrainingState, AutoTestState, PauseState, OptionsState, InstructionsState, KeyConfigState, SingleVersusGameState
 
 # Pygameの初期化をモック
-@pytest.fixture(scope="session", autouse=True)
-def mock_pygame_init(session_mocker):
-    session_mocker.patch("pygame.init", return_value=(6, 0))
-    session_mocker.patch("pygame.display.set_mode", return_value=MagicMock())
-    session_mocker.patch("pygame.display.set_caption", return_value=None)
-    session_mocker.patch("pygame.font.init", return_value=None)
-    session_mocker.patch("pygame.font.Font", return_value=MagicMock())
-    session_mocker.patch("pygame.font.SysFont", return_value=MagicMock())
-    session_mocker.patch("pygame.mixer.Sound", return_value=MagicMock())
-    session_mocker.patch("pygame.mixer.music.load", return_value=None)
-    session_mocker.patch("pygame.mixer.music.play", return_value=None)
-    session_mocker.patch("pygame.mixer.music.set_volume", return_value=None)
-    session_mocker.patch("pygame.time.Clock", return_value=MagicMock())
+@pytest.fixture(autouse=True)
+def mock_pygame_init(mocker):
+    mocker.patch("pygame.init", return_value=(6, 0))
+    mocker.patch("pygame.display.set_mode", return_value=MagicMock())
+    mocker.patch("pygame.display.set_caption", return_value=None)
+    mocker.patch("pygame.font.init", return_value=None)
+    mocker.patch("pygame.font.Font", return_value=MagicMock())
+    mocker.patch("pygame.font.SysFont", return_value=MagicMock())
+    mocker.patch("pygame.mixer.Sound", return_value=MagicMock())
+    mocker.patch("pygame.mixer.music.load", return_value=None)
+    mocker.patch("pygame.mixer.music.play", return_value=None)
+    mocker.patch("pygame.mixer.music.set_volume", return_value=None)
+    mocker.patch("pygame.time.Clock", return_value=MagicMock())
     # quitとexitもモック
-    session_mocker.patch("pygame.quit", return_value=None)
-    session_mocker.patch("sys.exit", return_value=None)
+    mocker.patch("pygame.quit", return_value=None)
+    mocker.patch("sys.exit", return_value=None)
 
 
 @pytest.fixture

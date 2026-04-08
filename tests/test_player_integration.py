@@ -63,7 +63,8 @@ class TestPlayerIntegration:
         }
         
         # プレイヤーを更新
-        player.update(keys, arena, opponent)
+        player.key_states = keys
+        player.update(arena, opponent)
         
         # 右に移動したことを確認
         assert player.x > initial_x
@@ -75,7 +76,8 @@ class TestPlayerIntegration:
         initial_x = player.x
         initial_y = player.y
         
-        player.update(keys, arena, opponent)
+        player.key_states = keys
+        player.update(arena, opponent)
         
         # 斜め移動は速度が正規化されるため、距離は直接比較できない
         # sqrt(2)/2 * PLAYER_SPEED に近い値になるはず
@@ -109,7 +111,8 @@ class TestPlayerIntegration:
         assert player.heat == 0
         
         # プレイヤーを更新
-        player.update(keys, arena, opponent)
+        player.key_states = keys
+        player.update(arena, opponent)
         
         # ダッシュ状態になっていることを確認
         assert player.is_dashing == True
@@ -139,7 +142,8 @@ class TestPlayerIntegration:
         }
         
         # プレイヤーを更新
-        player.update(keys, arena, opponent)
+        player.key_states = keys
+        player.update(arena, opponent)
         
         # 弾が発射されていることを確認
         assert len(game.projectiles) == 1
@@ -166,7 +170,8 @@ class TestPlayerIntegration:
         assert player.is_hyper_active == False
         
         # プレイヤーを更新
-        player.update(keys, arena, opponent)
+        player.key_states = keys
+        player.update(arena, opponent)
         
         # ハイパーモードが有効になっていることを確認
         assert player.is_hyper_active == True
@@ -196,7 +201,8 @@ class TestPlayerIntegration:
         assert player.shield_duration_counter == 0
         
         # プレイヤーを更新
-        player.update(keys, arena, opponent)
+        player.key_states = keys
+        player.update(arena, opponent)
         
         # シールドが有効になっていることを確認
         assert player.is_shield_active == True
@@ -243,52 +249,61 @@ class TestPlayerIntegration:
         }
         
         # 1. 通常時のダッシュ開始
-        player.update(keys_dash_on, arena, opponent)
+        player.key_states = keys_dash_on
+        player.update(arena, opponent)
         assert player.is_dashing == True
         assert player.heat < 200
-        
+
         # 2. ダッシュによるヒート上昇をシミュレート
         # 190%まで上昇させる
         player.heat = 190
-        player.update(keys_dash_on, arena, opponent)
+        player.key_states = keys_dash_on
+        player.update(arena, opponent)
         assert player.is_dashing == True
         assert player.heat >= 190
-        
+
         # 3. 200%到達時の状態確認
         player.heat = 210  # 200%以上に設定
         player.is_dashing = True  # ダッシュ中と仮定
-        player.update(keys_dash_on, arena, opponent)
+        player.key_states = keys_dash_on
+        player.update(arena, opponent)
         assert player.is_dashing == True  # 既に開始したダッシュは継続できる
-        
+
         # 4. ダッシュ解除後の再ダッシュ不可状態の確認
-        player.update(keys_dash_off, arena, opponent)  # ダッシュ解除
+        player.key_states = keys_dash_off
+        player.update(arena, opponent)  # ダッシュ解除
         assert player.is_dashing == False
         # 再度ダッシュ開始を試みる
-        player.update(keys_dash_on, arena, opponent)
+        player.key_states = keys_dash_on
+        player.update(arena, opponent)
         assert player.is_dashing == False  # 200%以上なので再ダッシュ不可
-        
-        # 5. ヒート減少後の再ダッシュ可能状態の確認
+
+        # 5. ヒート減少後（200%未満）の再ダッシュ可能状態の確認
         player.heat = 190  # 200%未満に減少
         player.dash_cooldown = 0  # ダッシュクールダウンを0に設定（確実にダッシュ可能な状態に）
-        player.update(keys_dash_on, arena, opponent)
+        player.key_states = keys_dash_on
+        player.update(arena, opponent)
         assert player.is_dashing == True  # 再ダッシュ可能
-        
+
         # 6. 300%到達時の強制ダッシュ解除
         player.heat = MAX_HEAT  # 300%に設定
         player.is_dashing = True  # ダッシュ中と仮定
         player.is_overheated = False  # オーバーヒート状態をリセット
-        
+
         # 強制的にMAX_HEATとダッシュがONの状態から更新
-        player.update(keys_dash_on, arena, opponent)
-        
+        player.key_states = keys_dash_on
+        player.update(arena, opponent)
+
         # オーバーヒート状態になっていることを確認
         assert player.is_overheated == True
         # ダッシュが解除されていることを確認
         assert player.is_dashing == False
-        
+
         # ヒートがMAX_HEAT以上であることを確認 (1フレームで減少するため完全に等しくない可能性がある)
         assert player.heat >= MAX_HEAT - HEAT_DECREASE_RATE
-        
+
         # 再度ダッシュを試みても失敗することを確認
-        player.update(keys_dash_on, arena, opponent)
-        assert player.is_dashing == False 
+        player.key_states = keys_dash_on
+        player.update(arena, opponent)
+        assert player.is_dashing == False
+ 

@@ -317,6 +317,20 @@ class Player:
         # すべてのキー状態をリセット
         self.key_states = {key: False for key in self.key_states}
         
+    def is_shielding(self):
+        """シールドがアクティブかどうかを返す"""
+        return self.is_shield_active
+
+    @property
+    def is_hyper(self):
+        """ハイパーモードがアクティブかどうかを返す"""
+        return self.is_hyper_active
+    
+    @is_hyper.setter
+    def is_hyper(self, value):
+        """ハイパーモードの状態を設定する"""
+        self.is_hyper_active = value
+
     def update(self, arena, opponent):
         """プレイヤーの状態を更新"""
         # デバッグログ (プレイヤー1のみ、1秒に1回)
