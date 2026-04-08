@@ -141,10 +141,31 @@ class HUD:
         hyper_text_rect = hyper_text.get_rect()
         hyper_text_rect.topleft = (hyper_x + hyper_width + 10, hyper_y)
         screen.blit(hyper_text, hyper_text_rect)
-        
+
+        # 水分量ゲージ
+        water_width = 150
+        water_height = 15
+        water_x = x
+        water_y = y + 110
+        water_percent = min(1.0, player.water_level / 100.0)
+
+        # 背景
+        pygame.draw.rect(screen, GRAY, (water_x, water_y, water_width, water_height))
+        # 水分 (青)
+        pygame.draw.rect(screen, (50, 150, 255), (water_x, water_y, water_width * water_percent, water_height))
+        # 枠線
+        pygame.draw.rect(screen, WHITE, (water_x, water_y, water_width, water_height), 2)
+
+        # 水分テキスト
+        water_text = self.font.render(f"水分: {int(player.water_level)}%", True, WHITE)
+        water_text_rect = water_text.get_rect()
+        water_text_rect.topleft = (water_x + water_width + 10, water_y)
+        screen.blit(water_text, water_text_rect)
+
         # ハイパーモード中表示
         if hasattr(player, 'is_hyper_active') and player.is_hyper_active:
             status_text = self.font_large.render("ハイパーモード発動中! (ダメージ2倍)", True, YELLOW)
             status_rect = status_text.get_rect()
-            status_rect.topleft = (x, y + 115)
-            screen.blit(status_text, status_rect) 
+            status_rect.topleft = (x, y + 140)
+            screen.blit(status_text, status_rect)
+ 

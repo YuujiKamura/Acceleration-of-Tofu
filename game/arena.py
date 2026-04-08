@@ -31,6 +31,13 @@ class Arena:
         # 背景を描画
         pygame.draw.circle(screen, (20, 20, 40), (self.center_x, self.center_y), self.radius)
         
+        # 水分補給エリア（中央）
+        water_color = (50, 100, 200, 100) # 半透明の青
+        # Pygameのdraw.circleはRGBAタプルを直接サポートしていない場合があるため、サーフェスを使用
+        overlay = pygame.Surface((self.radius * 2, self.radius * 2), pygame.SRCALPHA)
+        pygame.draw.circle(overlay, water_color, (self.radius, self.radius), 100)
+        screen.blit(overlay, (self.center_x - self.radius, self.center_y - self.radius))
+
         # 警告リングを描画（点滅効果）
         # アルファ値の計算はRGBタプルにはできないので、明度を変更する方法を使用
         alpha_ratio = self.border_alpha / 255.0

@@ -185,7 +185,9 @@ class Player:
         # 初期位置を保存（リセット用）
         self.initial_x = x
         self.initial_y = y
-        self.radius = 15  # プレイヤーの当たり判定半径
+        self.base_radius = 15  # 基本の当たり判定半径
+        self.radius = self.base_radius
+        self.water_level = 100.0 # 水分量 (%)
         self.is_player1 = is_player1
         # 色を変更（プレイヤー1はネギ色、プレイヤー2は紅生姜色）
         self.color = NEGI_GREEN if is_player1 else BENI_RED
@@ -350,8 +352,23 @@ class Player:
         self.prev_x = self.x
         self.prev_y = self.y
         
+        # 水分量に応じたサイズ調整 (水分が減ると小さくなる)
+        # 最低サイズは元の50%
+        scale = 0.5 + (self.water_level / 100.0) * 0.5
+        self.radius = self.base_radius * scale
+        self.square_size = self.radius * 2
+
         # 移動処理 (self.key_states を渡す)
         self.move(self.key_states, arena)
+        
+        # ダッシュ中の水分消費 (水圧加速)
+        if self.is_dashing:
+            self.water_level = max(0.0, self.water_level - 0.2) # 1フレームにつき0.2%消費
+        
+        # 水分補給 (アリーナ中央付近で回復)
+        dist_to_center = math.sqrt((self.x - arena.center_x)**2 + (self.y - arena.center_y)**2)
+        if dist_to_center < 100: # 中央100ピクセル以内
+            self.water_level = min(100.0, self.water_level + 0.5) # 1フレームにつき0.5%回復
         
         # 移動距離を計算して速度ベースのヒート上昇を適用
         distance_moved = math.sqrt((self.x - self.prev_x)**2 + (self.y - self.prev_y)**2)
@@ -557,6 +574,8 @@ class Player:
             # ダッシュ中は保存した方向に移動
             move_x = self.dash_direction_x * speed
             move_y = self.dash_direction_y * speed
+            # 水抜き加速: 水分を消費
+            self.water_level = max(0.0, self.water_level - 0.2)
         else:
             # 通常移動はキー入力方向に移動
             move_x = dx * speed

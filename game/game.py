@@ -310,14 +310,22 @@ class Game:
                 angle = math.atan2(dy, dx)
                 overlap = min_dist - distance
             
-            # 半分ずつ押し戻す
-            push_x = math.cos(angle) * (overlap / 2)
-            push_y = math.sin(angle) * (overlap / 2)
+            # 半分ずつ押し戻す基本ロジックを、水分量（重さ）に応じて調整
+            # 水分量が多いほど重く、動かされにくい
+            # w1, w2 は重さの比率 (0.5 ~ 1.0)
+            w1 = 0.5 + (self.player1.water_level / 100.0) * 0.5
+            w2 = 0.5 + (self.player2.water_level / 100.0) * 0.5
             
-            self.player1.x += push_x
-            self.player1.y += push_y
-            self.player2.x -= push_x
-            self.player2.y -= push_y
+            # 合計の重さに対する比率で押し戻し量を決める
+            # 軽い方(wが小さい方)がより大きく動く
+            total_w = w1 + w2
+            ratio1 = w2 / total_w # player2が重いほどplayer1が大きく動く
+            ratio2 = w1 / total_w # player1が重いほどplayer2が大きく動く
+            
+            self.player1.x += math.cos(angle) * (overlap * ratio1)
+            self.player1.y += math.sin(angle) * (overlap * ratio1)
+            self.player2.x -= math.cos(angle) * (overlap * ratio2)
+            self.player2.y -= math.sin(angle) * (overlap * ratio2)
 
         # プレイヤーと弾の衝突判定
         for proj in self.projectiles[:]:
