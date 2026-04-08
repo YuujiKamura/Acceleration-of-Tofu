@@ -232,6 +232,14 @@ class Game:
             self.player2.key_states = self.ai_controller.simple_ai_control()
         self.player2.update(self.arena, self.player1)
 
+        # 粘り（糸）の物理引き寄せロジック
+        # プレイヤー1が発酵中ならプレイヤー2を引き寄せる
+        if self.player1.is_fermented:
+            self._apply_sticky_tether(self.player1, self.player2)
+        # プレイヤー2が発酵中ならプレイヤー1を引き寄せる
+        if self.player2.is_fermented:
+            self._apply_sticky_tether(self.player2, self.player1)
+
         for proj in self.projectiles[:]:
             proj.update()
             if proj.is_expired:
@@ -301,6 +309,21 @@ class Game:
     def simple_ai_control(self):
         return self.ai_controller.simple_ai_control()
         
+    def _apply_sticky_tether(self, fermented_player, opponent):
+        """発酵（粘り）オーラによる引き寄せ物理を適用"""
+        dx = fermented_player.x - opponent.x
+        dy = fermented_player.y - opponent.y
+        distance = math.sqrt(dx*dx + dy*dy)
+        
+        if distance < 100 and distance > 5: # 100ピクセル以内かつ重なりすぎていない
+            # 引き寄せ強度（距離が近いほど強く、最大で1フレームあたり1.0ピクセル移動）
+            strength = (1.0 - (distance / 100.0)) * 1.5
+            angle = math.atan2(dy, dx)
+            
+            # 相手の位置を強制的に微移動（引き寄せ）
+            opponent.x += math.cos(angle) * strength
+            opponent.y += math.sin(angle) * strength
+
     def handle_collisions(self):
         """衝突判定処理"""
         # プレイヤー同士の衝突判定

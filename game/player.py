@@ -600,11 +600,12 @@ class Player:
         
         # 発酵（粘り）オーラによる減速
         # 相手が発酵状態かつ近い場合、速度を大幅に下げる
-        opponent = self.game.player2 if self.is_player1 else self.game.player1
-        if opponent.is_fermented:
-            dist = math.sqrt((self.x - opponent.x)**2 + (self.y - opponent.y)**2)
-            if dist < 100: # 100ピクセル以内
-                speed *= 0.4 # 60%減速
+        if self.game:
+            opponent = self.game.player2 if self.is_player1 else self.game.player1
+            if opponent.is_fermented:
+                dist = math.sqrt((self.x - opponent.x)**2 + (self.y - opponent.y)**2)
+                if dist < 100: # 100ピクセル以内
+                    speed *= 0.4 # 60%減速
         
         if self.is_dashing:
             # ダッシュ中は保存した方向に移動
