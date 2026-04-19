@@ -173,39 +173,39 @@ GAME_MODES = {
 SOUND_EFFECTS = {
     # BGM
     "BGM": {
-        "TITLE": "assets/sounds/rockman_title.wav",
+        "TITLE": "assets/sounds/rockman_title.ogg",
     },
     
     # UI/メニュー
     "UI": {
-        "CURSOR": "assets/sounds/menu.wav",      # カーソル移動
-        "SELECT": "assets/sounds/stage_clear.wav",  # 決定
-        "CANCEL": "assets/sounds/damage.wav",     # キャンセル
-        "HIGHSCORE": "assets/sounds/1up.wav",    # ハイスコア表示
+        "CURSOR": "assets/sounds/menu.ogg",      # カーソル移動
+        "SELECT": "assets/sounds/stage_clear.ogg",  # 決定
+        "CANCEL": "assets/sounds/damage.ogg",     # キャンセル
+        "HIGHSCORE": "assets/sounds/1up.ogg",    # ハイスコア表示
     },
     
     # プレイヤーアクション
     "PLAYER": {
-        "JUMP": "assets/sounds/jump.wav",        # ジャンプ
-        "LAND": "assets/sounds/land.wav",        # 着地
-        "DASH": "assets/sounds/special.wav",     # ダッシュ
-        "SHIELD": "assets/sounds/shield.wav",    # シールド発動
-        "HYPER": "assets/sounds/hyper.wav",      # ハイパーモード発動
+        "JUMP": "assets/sounds/jump.ogg",        # ジャンプ
+        "LAND": "assets/sounds/land.ogg",        # 着地
+        "DASH": "assets/sounds/special.ogg",     # ダッシュ
+        "SHIELD": "assets/sounds/shield.ogg",    # シールド発動
+        "HYPER": "assets/sounds/hyper.ogg",      # ハイパーモード発動
     },
     
     # 攻撃
     "WEAPON": {
-        "SHOT": "assets/sounds/shot.wav",        # 通常ショット
-        "CHARGE": "assets/sounds/charge.wav",    # チャージショット
-        "HIT": "assets/sounds/hit.wav",          # ヒット
-        "SPECIAL": "assets/sounds/special.wav",  # スペシャル攻撃
+        "SHOT": "assets/sounds/shot.ogg",        # 通常ショット
+        "CHARGE": "assets/sounds/charge.ogg",    # チャージショット
+        "HIT": "assets/sounds/hit.ogg",          # ヒット
+        "SPECIAL": "assets/sounds/special.ogg",  # スペシャル攻撃
     },
     
     # システム/その他
     "SYSTEM": {
-        "BOSS": "assets/sounds/boss_appear.wav", # ボス出現
-        "DAMAGE": "assets/sounds/damage.wav",    # ダメージ
-        "ITEM": "assets/sounds/item.wav",        # アイテム取得
+        "BOSS": "assets/sounds/boss_appear.ogg", # ボス出現
+        "DAMAGE": "assets/sounds/damage.ogg",    # ダメージ
+        "ITEM": "assets/sounds/item.ogg",        # アイテム取得
     }
 }
 

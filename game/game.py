@@ -152,12 +152,12 @@ class Game:
         
         # 効果音ファイルが存在するか確認して読み込む
         sound_files = {
-            "shot": "assets/sounds/shot.wav",
-            "special": "assets/sounds/special.wav",
-            "hit": "assets/sounds/hit.wav",
-            "shield": "assets/sounds/shield.wav",
-            "hyper": "assets/sounds/hyper.wav",
-            "menu": "assets/sounds/menu.wav"
+            "shot": "assets/sounds/shot.ogg",
+            "special": "assets/sounds/special.ogg",
+            "hit": "assets/sounds/hit.ogg",
+            "shield": "assets/sounds/shield.ogg",
+            "hyper": "assets/sounds/hyper.ogg",
+            "menu": "assets/sounds/menu.ogg"
         }
         
         # サウンドディレクトリの存在確認
@@ -177,7 +177,7 @@ class Game:
         if not self.enable_audio:
             return
         try:
-            self.title_bgm = pygame.mixer.Sound("assets/sounds/rockman_title.wav")
+            self.title_bgm = pygame.mixer.Sound("assets/sounds/rockman_title.ogg")
             self.title_bgm.set_volume(0.5)
         except Exception:
             self.title_bgm = None
