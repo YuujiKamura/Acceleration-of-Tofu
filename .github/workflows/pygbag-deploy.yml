@@ -31,7 +31,7 @@ jobs:
         env:
           PYTHONUTF8: "1"
         run: |
-          pygbag --build main.py
+          pygbag --build --disable-sound-format-error main.py
 
       - name: List build output
         run: ls -la build/web/
