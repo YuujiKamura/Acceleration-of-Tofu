@@ -8,21 +8,27 @@ import traceback
 
 import pygame
 
-from game.constants import FPS, SCREEN_HEIGHT, SCREEN_WIDTH, TITLE
+from game.constants import FPS, SCREEN_HEIGHT, SCREEN_WIDTH
 from game.game import Game
+from game.i18n import set_language, tr
 from game.states import SplashScreenState
 
 
 async def main():
     # argparse: works on desktop; in browser (pygbag) argv is minimal so no args.
-    parser = argparse.ArgumentParser(description="豆腐の加速")
-    parser.add_argument("-d", "--debug", action="store_true", help="デバッグモードを有効化")
+    parser = argparse.ArgumentParser(description="Acceleration of Tofu")
+    parser.add_argument("-d", "--debug", action="store_true", help="デバッグモードを有効化 / Enable debug mode")
+    parser.add_argument("--lang", default=None, help="Language code (ja, en, ...). Overrides auto-detect.")
     # Tolerate unknown args (e.g. pygbag may inject flags).
     args, _unknown = parser.parse_known_args()
 
+    # Apply CLI-provided language if any; otherwise i18n auto-detected at import.
+    if args.lang:
+        set_language(args.lang)
+
     pygame.init()
     pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
-    pygame.display.set_caption(TITLE)
+    pygame.display.set_caption(tr("title"))
 
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     clock = pygame.time.Clock()

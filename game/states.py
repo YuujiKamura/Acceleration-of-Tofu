@@ -17,6 +17,7 @@ from game.constants import (
     WHITE,
     YELLOW,
 )
+from game.i18n import tr
 
 # Gameクラスを循環参照なしで型ヒントとして利用するためのインポート
 if TYPE_CHECKING:
@@ -180,7 +181,7 @@ class TitleState(BaseState):
             screen.blit(self.background_surface, (0, 0))
 
         # ゲームタイトル
-        title_text = self.title_font.render("アクセラレーションオブ豆腐", True, CYAN)
+        title_text = self.title_font.render(tr("splash.title"), True, CYAN)
         title_rect = title_text.get_rect(center=(SCREEN_WIDTH // 2, 150))
         screen.blit(title_text, title_rect)
 
@@ -406,12 +407,12 @@ class InstructionsState(BaseState):
         screen.fill((0, 0, 0))
 
         # タイトル
-        title = self.title_font.render("操作説明", True, (255, 255, 255))
+        title = self.title_font.render(tr("controls.title"), True, (255, 255, 255))
         title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 60))
         screen.blit(title, title_rect)
 
         # プレイヤー1の操作説明
-        p1_title = self.font.render("プレイヤー1", True, (0, 255, 255))
+        p1_title = self.font.render(tr("controls.player1"), True, (0, 255, 255))
         screen.blit(p1_title, (100, 120))
 
         y_offset = 155
@@ -429,7 +430,7 @@ class InstructionsState(BaseState):
             y_offset += 28
 
         # プレイヤー2の操作説明
-        p2_title = self.font.render("プレイヤー2", True, (255, 100, 100))
+        p2_title = self.font.render(tr("controls.player2"), True, (255, 100, 100))
         screen.blit(p2_title, (100, y_offset + 15))
 
         y_offset += 50
@@ -447,7 +448,7 @@ class InstructionsState(BaseState):
             y_offset += 28
 
         # 共通操作
-        common_title = self.font.render("共通", True, (200, 200, 100))
+        common_title = self.font.render(tr("controls.common"), True, (200, 200, 100))
         screen.blit(common_title, (100, y_offset + 15))
         y_offset += 50
         for text_str in ["ESC: ポーズ/戻る", "Enter or Z: 決定"]:
@@ -456,7 +457,7 @@ class InstructionsState(BaseState):
             y_offset += 28
 
         # 戻る方法
-        back_text = self.font.render("戻る: ESCキー または 決定ボタン", True, (150, 150, 150))
+        back_text = self.font.render(tr("controls.back"), True, (150, 150, 150))
         back_rect = back_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 40))
         screen.blit(back_text, back_rect)
 
@@ -530,7 +531,7 @@ class OptionsState(BaseState):
         screen.fill((0, 0, 0))
 
         # タイトル
-        title_text = self.title_font.render("オプション", True, WHITE)
+        title_text = self.title_font.render(tr("options.title"), True, WHITE)
         screen.blit(title_text, (SCREEN_WIDTH // 2 - title_text.get_width() // 2, 100))
 
         # メニュー項目
@@ -617,7 +618,7 @@ class KeyConfigState(BaseState):
         screen.fill((0, 0, 0))
 
         # タイトル
-        title_text = self.title_font.render("キー設定", True, WHITE)
+        title_text = self.title_font.render(tr("keyconfig.title"), True, WHITE)
         screen.blit(title_text, (SCREEN_WIDTH // 2 - title_text.get_width() // 2, 50))
 
         # プレイヤー選択表示

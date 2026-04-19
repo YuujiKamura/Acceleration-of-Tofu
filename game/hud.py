@@ -4,6 +4,7 @@ from game.constants import (
     WHITE, GRAY, GREEN, ORANGE, RED, YELLOW, CYAN,
     MAX_HEALTH, MAX_HEAT, MAX_HYPER
 )
+from game.i18n import tr
 
 class HUD:
     """ゲームのHUD（ヘッドアップディスプレイ）を管理するクラス"""
@@ -96,7 +97,7 @@ class HUD:
         pygame.draw.rect(screen, WHITE, (heat_x, heat_y, heat_width, heat_height), 2)
         
         # ヒートテキスト
-        heat_text = self.font.render(f"ヒート: {int(player.heat)}%", True, WHITE)
+        heat_text = self.font.render(tr("hud.heat", value=int(player.heat)), True, WHITE)
         heat_text_rect = heat_text.get_rect()
         heat_text_rect.topleft = (heat_x + heat_width + 10, heat_y)
         screen.blit(heat_text, heat_text_rect)
@@ -105,7 +106,7 @@ class HUD:
         if is_overheat:
             # 点滅表示
             if self.frame_count % 30 < 15:
-                overheat_text = self.font_large.render("OVERHEAT", True, ORANGE)
+                overheat_text = self.font_large.render(tr("hud.overheat"), True, ORANGE)
                 overheat_rect = overheat_text.get_rect()
                 overheat_rect.midtop = (heat_x + heat_width // 2, heat_y - 30)
                 screen.blit(overheat_text, overheat_rect)
@@ -137,7 +138,7 @@ class HUD:
         pygame.draw.rect(screen, WHITE, (hyper_x, hyper_y, hyper_width, hyper_height), 2)
         
         # ハイパーテキスト
-        hyper_text = self.font.render(f"ハイパー: {int(player.hyper_gauge)}%", True, WHITE)
+        hyper_text = self.font.render(tr("hud.hyper", value=int(player.hyper_gauge)), True, WHITE)
         hyper_text_rect = hyper_text.get_rect()
         hyper_text_rect.topleft = (hyper_x + hyper_width + 10, hyper_y)
         screen.blit(hyper_text, hyper_text_rect)
@@ -157,7 +158,7 @@ class HUD:
         pygame.draw.rect(screen, WHITE, (water_x, water_y, water_width, water_height), 2)
 
         # 水分テキスト
-        water_text = self.font.render(f"水分: {int(player.water_level)}%", True, WHITE)
+        water_text = self.font.render(tr("hud.water", value=int(player.water_level)), True, WHITE)
         water_text_rect = water_text.get_rect()
         water_text_rect.topleft = (water_x + water_width + 10, water_y)
         screen.blit(water_text, water_text_rect)
@@ -171,7 +172,7 @@ class HUD:
         pygame.draw.rect(screen, GRAY, (bean_x, bean_y, bean_width, bean_height))
         pygame.draw.rect(screen, (139, 69, 19), (bean_x, bean_y, bean_width * bean_percent, bean_height))
         pygame.draw.rect(screen, WHITE, (bean_x, bean_y, bean_width, bean_height), 1)
-        bean_text = self.font.render(f"豆: {int(player.beans)}%", True, WHITE)
+        bean_text = self.font.render(tr("hud.bean", value=int(player.beans)), True, WHITE)
         screen.blit(bean_text, (bean_x + bean_width + 10, bean_y - 5))
 
         # 熟成度ゲージ (黄金色系)
@@ -183,12 +184,12 @@ class HUD:
         pygame.draw.rect(screen, GRAY, (aging_x, aging_y, aging_width, aging_height))
         pygame.draw.rect(screen, (255, 215, 0), (aging_x, aging_y, aging_width * aging_percent, aging_height))
         pygame.draw.rect(screen, WHITE, (aging_x, aging_y, aging_width, aging_height), 1)
-        aging_text = self.font.render(f"熟成: {int(player.aging)}%", True, WHITE)
+        aging_text = self.font.render(tr("hud.aging", value=int(player.aging)), True, WHITE)
         screen.blit(aging_text, (aging_x + aging_width + 10, aging_y - 5))
         
         # ハイパーモード中表示
         if hasattr(player, 'is_hyper_active') and player.is_hyper_active:
-            status_text = self.font_large.render("ハイパーモード発動中! (ダメージ2倍)", True, YELLOW)
+            status_text = self.font_large.render(tr("hud.hyper_active"), True, YELLOW)
             status_rect = status_text.get_rect()
             status_rect.topleft = (x, y + 180)
             screen.blit(status_text, status_rect)
