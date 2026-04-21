@@ -14,8 +14,10 @@ import {
   HYPER_ACTIVATION_COST,
   HEAT_DECREASE_RATE,
 } from "../config/constants";
-import { TOFU_WHITE, NEGI_GREEN, CYAN } from "../config/colors";
+import { NEGI_GREEN, BENI_RED, MAGENTA, YELLOW } from "../config/colors";
 import { Projectile, createProjectile } from "./Projectile";
+import { DashRing } from "./effects/DashRing";
+import { ShieldEffect } from "./effects/ShieldEffect";
 
 /**
  * Player
@@ -86,6 +88,10 @@ export class Player {
   public readonly radius = 15;
   public readonly isPlayer1: boolean;
   public readonly color: number;
+  // py line 199: self.square_size = 30
+  public readonly squareSize = 30;
+  // py line 240: self.facing_angle = 0
+  public facingAngle = 0;
 
   // --- gauges ---
   public health: number = MAX_HEALTH;
@@ -95,6 +101,17 @@ export class Player {
   public beans = 100;
   public aging = 0;
 
+  // py line 194: self.ferment_particles = []
+  public fermentParticles: { x: number; y: number; life: number }[] = [];
+
+  // py line 213: self.dash_rings = []
+  public dashRings: DashRing[] = [];
+  // py line 245: self.shield_effect = None
+  public shieldEffect: ShieldEffect | null = null;
+
+  // py line 205: self.hyper_duration = 0 — used for glow pulse math
+  public hyperDuration = 0;
+
   // --- action state (raw frame counters; getters below expose `is*` views) ---
   public keyStates: KeyStates = emptyKeyStates();
 
@@ -103,6 +120,9 @@ export class Player {
   // action can fully finish before the next activation becomes legal.
   private dashFrames = 0;
   private dashCooldown = 0;
+  // py lines 223-224
+  private dashRingCounter = 0;
+  private readonly dashRingInterval = 4;
   private shieldFrames = 0;
   private shieldCooldown = 0;
   private hyperActiveFrames = 0;
@@ -112,7 +132,10 @@ export class Player {
   private damageFlashFrames = 0;
   private muzzleFlashFrames = 0;
 
-  public readonly sprite: Phaser.GameObjects.Arc;
+  // Primary render target. All per-frame body drawing (hyper glow, tofu
+  // square, aging color, border, weapon line, fermentation particles) lands
+  // on this single Graphics object. Replaces the old Phaser.Arc sprite.
+  public readonly bodyG: Phaser.GameObjects.Graphics;
 
   private readonly initialX: number;
   private readonly initialY: number;
@@ -123,9 +146,10 @@ export class Player {
     this.initialX = x;
     this.initialY = y;
     this.isPlayer1 = isPlayer1;
-    this.color = isPlayer1 ? TOFU_WHITE : NEGI_GREEN;
-    this.sprite = scene.add.circle(x, y, this.radius, this.color);
-    this.sprite.setStrokeStyle(2, 0xffffff);
+    // py line 197: NEGI_GREEN if is_player1 else BENI_RED
+    this.color = isPlayer1 ? NEGI_GREEN : BENI_RED;
+    this.bodyG = scene.add.graphics();
+    this.render();
   }
 
   // ---- state-predicate getters (read-only views for HUD / AI / Combat) ----
@@ -183,9 +207,8 @@ export class Player {
     scene: Phaser.Scene
   ): void {
     if (!this.isAlive) {
-      // still position the sprite (dead bodies stay put but shouldn't input)
-      this.sprite.setPosition(this.x, this.y);
-      this.sprite.setFillStyle(0x404040);
+      // still render (dead bodies stay put but shouldn't input)
+      this.render();
       return;
     }
 
@@ -217,6 +240,9 @@ export class Player {
     ) {
       this.shieldFrames = SHIELD_DURATION;
       this.shieldCooldown = SHIELD_DURATION + SHIELD_COOLDOWN;
+      // py: self.shield_effect = ShieldEffect(self)
+      if (this.shieldEffect) this.shieldEffect.destroy();
+      this.shieldEffect = new ShieldEffect(scene, this);
     }
 
     // --- hyper activation: only if gauge sufficient and not already active ---
@@ -227,6 +253,7 @@ export class Player {
     ) {
       this.hyperGauge -= HYPER_ACTIVATION_COST;
       this.hyperActiveFrames = HYPER_DURATION;
+      this.hyperDuration = HYPER_DURATION;
     }
 
     // --- hyper consumption while active ---
@@ -235,8 +262,10 @@ export class Player {
         0,
         this.hyperGauge - HYPER_CONSUMPTION_RATE * dtScale
       );
+      this.hyperDuration = Math.max(0, this.hyperDuration - dtScale);
       if (this.hyperGauge <= 0) {
         this.hyperActiveFrames = 0;
+        this.hyperDuration = 0;
       }
     }
 
@@ -262,6 +291,27 @@ export class Player {
     this.vy = dy * speed;
     this.x += this.vx * dtScale;
     this.y += this.vy * dtScale;
+
+    // py line 353: facing_angle = atan2(opponent.y - y, opponent.x - x)
+    this.facingAngle = Math.atan2(opponent.y - this.y, opponent.x - this.x);
+
+    // Dash ring trail while dashing (py lines 593-596)
+    if (this.isDashing) {
+      this.dashRingCounter += dtScale;
+      if (this.dashRingCounter >= this.dashRingInterval) {
+        this.dashRings.push(
+          new DashRing(
+            scene,
+            this.x,
+            this.y,
+            DASH_RING_DURATION,
+            this.vx,
+            this.vy
+          )
+        );
+        this.dashRingCounter = 0;
+      }
+    }
 
     // --- arena clamp (circle) ---
     const cdx = this.x - arenaCenterX;
@@ -326,24 +376,155 @@ export class Player {
       this.heat = Math.max(0, this.heat - HEAT_DECREASE_RATE * dtScale);
     }
 
-    // --- render state update ---
-    this.sprite.setPosition(this.x, this.y);
+    // --- update effects ---
+    // py lines 411-414: prune dead dash rings
+    for (let i = this.dashRings.length - 1; i >= 0; i--) {
+      const ring = this.dashRings[i];
+      ring.update();
+      if (ring.isDead) {
+        ring.destroy();
+        this.dashRings.splice(i, 1);
+      }
+    }
+    // py: shield_effect.update()
+    if (this.shieldEffect) {
+      this.shieldEffect.update();
+      if (this.shieldEffect.isDead) {
+        this.shieldEffect.destroy();
+        this.shieldEffect = null;
+      }
+    }
 
-    // Tint priority: damage-flash > hyper-active > muzzle-flash > default.
+    // py lines 868-874: fermentation particles (only emitted while fermented)
+    if (this.isFermented) {
+      // spawn a new particle with the same {x,y,life} shape Python uses
+      this.fermentParticles.push({
+        x: this.x + (Math.random() - 0.5) * this.squareSize * 1.2,
+        y: this.y + (Math.random() - 0.5) * this.squareSize * 1.2,
+        life: 30,
+      });
+    }
+    for (let i = this.fermentParticles.length - 1; i >= 0; i--) {
+      this.fermentParticles[i].life -= dtScale;
+      if (this.fermentParticles[i].life <= 0) {
+        this.fermentParticles.splice(i, 1);
+      }
+    }
+
+    this.render();
+  }
+
+  /**
+   * Render the player body. 1:1 port of game/player.py Player.draw()
+   * lines 813-889 using a single Phaser.GameObjects.Graphics instance.
+   */
+  render(): void {
+    const g = this.bodyG;
+    g.clear();
+
+    // Dead body: simple dark square (kept from existing behavior).
+    if (!this.isAlive) {
+      g.fillStyle(0x404040, 1.0);
+      g.fillRect(
+        Math.floor(this.x - this.squareSize / 2),
+        Math.floor(this.y - this.squareSize / 2),
+        this.squareSize,
+        this.squareSize
+      );
+      return;
+    }
+
+    // py lines 823-838: hyper glow
+    if (this.isHyperActive) {
+      const glowRadius = this.radius + 5;
+      const pulse = (this.hyperDuration % 20) / 20.0;
+      // py: glow_color = (255, 255, 0, int(200 * pulse + 50))
+      const glowAlpha = Math.floor(200 * pulse + 50) / 255;
+      g.fillStyle(0xffff00, glowAlpha);
+      g.fillCircle(
+        Math.floor(this.x),
+        Math.floor(this.y),
+        glowRadius + Math.floor(pulse * 3)
+      );
+      const glowSize = this.squareSize + 6;
+      g.lineStyle(2, 0xffff00, glowAlpha);
+      g.strokeRect(
+        Math.floor(this.x - glowSize / 2),
+        Math.floor(this.y - glowSize / 2),
+        glowSize,
+        glowSize
+      );
+    }
+
+    // py lines 841-844: color override during hyper
+    let color = this.color;
+    if (this.isHyperActive) {
+      color = this.isPlayer1 ? MAGENTA : YELLOW;
+    }
+
+    // py lines 847-853: aging color lerp TOFU_WHITE -> Golden (255,215,0)
+    const agingFactor = this.aging / 100.0;
+    const rC = 255;
+    const gC = Math.floor(255 - (255 - 215) * agingFactor);
+    const bC = Math.floor(255 - 255 * agingFactor);
+    let agingColor = (rC << 16) | (gC << 8) | bC;
+
+    // py lines 856-857: fermented overrides to Natto Brown (139,69,19)
+    if (this.isFermented) {
+      agingColor = 0x8b4513;
+    }
+
+    // py lines 859-865: filled tofu square
+    g.fillStyle(agingColor, 1.0);
+    g.fillRect(
+      Math.floor(this.x - this.squareSize / 2),
+      Math.floor(this.y - this.squareSize / 2),
+      this.squareSize,
+      this.squareSize
+    );
+
+    // py lines 868-874: fermentation particles (strings of natto)
+    // p_color = (210, 180, 140) = 0xD2B48C
+    if (this.fermentParticles.length > 0) {
+      for (const p of this.fermentParticles) {
+        const alpha = (255 * (p.life / 30.0)) / 255;
+        g.fillStyle(0xd2b48c, alpha);
+        g.fillCircle(Math.floor(p.x), Math.floor(p.y), 2);
+        g.lineStyle(1, 0xd2b48c, alpha);
+        g.lineBetween(
+          Math.floor(this.x),
+          Math.floor(this.y),
+          Math.floor(p.x),
+          Math.floor(p.y)
+        );
+      }
+    }
+
+    // py lines 877-883: colored border (negi/beni)
+    g.lineStyle(2, color, 1.0);
+    g.strokeRect(
+      Math.floor(this.x - this.squareSize / 2),
+      Math.floor(this.y - this.squareSize / 2),
+      this.squareSize,
+      this.squareSize
+    );
+
+    // py lines 885-889: weapon direction line
+    const weaponLength = this.radius * 2.5;
+    const endX = this.x + Math.cos(this.facingAngle) * weaponLength;
+    const endY = this.y + Math.sin(this.facingAngle) * weaponLength;
+    g.lineStyle(3, color, 1.0);
+    g.lineBetween(this.x, this.y, endX, endY);
+
+    // Damage flash overlay: draw a faint white square over everything.
     if (this.damageFlashFrames > 0) {
-      this.sprite.setFillStyle(0xffffff);
-      this.sprite.setStrokeStyle(3, 0xffffff);
-    } else if (this.isHyperActive) {
-      // cyan overlay during hyper (spec) — re-uses Phaser Arc fill since we
-      // don't have a proper tint pipeline on the bare Arc GameObject.
-      this.sprite.setFillStyle(CYAN);
-      this.sprite.setStrokeStyle(3, 0xffff00);
-    } else if (this.muzzleFlashFrames > 0) {
-      this.sprite.setFillStyle(this.color);
-      this.sprite.setStrokeStyle(3, 0xffff00);
-    } else {
-      this.sprite.setFillStyle(this.color);
-      this.sprite.setStrokeStyle(2, 0xffffff);
+      g.fillStyle(0xffffff, 0.6);
+      g.fillRect(
+        Math.floor(this.x - this.squareSize / 2),
+        Math.floor(this.y - this.squareSize / 2),
+        this.squareSize,
+        this.squareSize
+      );
     }
   }
 
@@ -391,16 +572,24 @@ export class Player {
     this.aging = 0;
     this.dashFrames = 0;
     this.dashCooldown = 0;
+    this.dashRingCounter = 0;
     this.shieldFrames = 0;
     this.shieldCooldown = 0;
     this.hyperActiveFrames = 0;
+    this.hyperDuration = 0;
     this.weaponACooldown = 0;
     this.weaponBCooldown = 0;
     this.damageFlashFrames = 0;
     this.muzzleFlashFrames = 0;
+    this.facingAngle = 0;
     this.keyStates = emptyKeyStates();
-    this.sprite.setPosition(this.x, this.y);
-    this.sprite.setFillStyle(this.color);
-    this.sprite.setStrokeStyle(2, 0xffffff);
+    for (const r of this.dashRings) r.destroy();
+    this.dashRings = [];
+    if (this.shieldEffect) {
+      this.shieldEffect.destroy();
+      this.shieldEffect = null;
+    }
+    this.fermentParticles = [];
+    this.render();
   }
 }
