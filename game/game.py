@@ -479,17 +479,12 @@ class Game:
         clip_height = min(int(SCREEN_HEIGHT / current_zoom), SCREEN_HEIGHT - clip_y)
         
         try:
-            surface.fill((0, 0, 0))
-            # ズーム ≒ 1.0 のときは transform.scale が等倍コピーになるだけで無駄に重い。
-            # そのまま buffer を丸ごと blit する高速パスに分岐する。
-            if abs(current_zoom - 1.0) < 1e-3:
-                surface.blit(buffer, (0, 0))
-                return
             clip_area = pygame.Rect(clip_x, clip_y, clip_width, clip_height)
             clipped_buffer = buffer.subsurface(clip_area)
             zoomed_width = int(clip_width * current_zoom)
             zoomed_height = int(clip_height * current_zoom)
             zoomed_buffer = pygame.transform.scale(clipped_buffer, (zoomed_width, zoomed_height))
+            surface.fill((0, 0, 0))
             dest_x = int(SCREEN_WIDTH/2 - zoomed_width/2)
             dest_y = int(SCREEN_HEIGHT/2 - zoomed_height/2)
             surface.blit(zoomed_buffer, (dest_x, dest_y))
