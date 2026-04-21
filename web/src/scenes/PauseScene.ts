@@ -1,5 +1,9 @@
 import Phaser from "phaser";
 import { SCREEN_WIDTH, SCREEN_HEIGHT } from "../config/constants";
+// Issue #13: port Python PauseState menu SFX (game/states.py:499-510).
+// UP/DOWN fires "menu"; ENTER/Z fires "special". ESC (resume) has no
+// SE in the Python original, so we intentionally do not wire it.
+import { AudioManager } from "../systems/Audio";
 
 /**
  * PauseScene
@@ -83,6 +87,9 @@ export class PauseScene extends Phaser.Scene {
     this.selectedIndex =
       (this.selectedIndex + delta + MENU_ITEMS.length) % MENU_ITEMS.length;
     this.refreshMenu();
+    // Python PauseState UP/DOWN handler calls sounds["menu"].play()
+    // after index update.
+    AudioManager.get().playSfx("menu");
   }
 
   private refreshMenu(): void {
@@ -92,6 +99,10 @@ export class PauseScene extends Phaser.Scene {
   }
 
   private confirm(): void {
+    // Python PauseState K_RETURN/K_z plays "special" before dispatching
+    // the selection (resume vs. return-to-title). Mirror that order so
+    // the SFX fires even if returnToTitle() tears this scene down.
+    AudioManager.get().playSfx("special");
     switch (this.selectedIndex) {
       case 0:
         this.resumeGame();

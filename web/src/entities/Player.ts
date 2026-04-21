@@ -19,6 +19,7 @@ import { NEGI_GREEN, BENI_RED, MAGENTA, YELLOW } from "../config/colors";
 import { Projectile, createProjectile } from "./Projectile";
 import { DashRing } from "./effects/DashRing";
 import { ShieldEffect } from "./effects/ShieldEffect";
+import { AudioManager } from "../systems/Audio";
 
 /**
  * Player
@@ -224,7 +225,13 @@ export class Player {
     this.decrementCounters(dtScale);
 
     // --- aging progresses passively; matches Python's +0.02/frame ---
+    // py lines 357-360: on the frame aging crosses 100, play "hyper" SE
+    // (fermentation transition). Edge-triggered: capture pre-increment state.
+    const wasFermented = this.isFermented;
     this.aging = Math.min(100, this.aging + 0.02 * dtScale);
+    if (!wasFermented && this.isFermented) {
+      AudioManager.get().playSfx("hyper");
+    }
 
     // --- shield activation: edge-triggered (cooldown gated) ---
     if (
@@ -411,6 +418,8 @@ export class Player {
         opponent
       );
       spawnProjectile(p);
+      // py lines 915-917: weapon_a fire -> play "shot" SE
+      AudioManager.get().playSfx("shot");
       this.weaponACooldown = WEAPON_A_COOLDOWN_FRAMES;
       this.beans = Math.max(0, this.beans - 2);
       this.muzzleFlashFrames = MUZZLE_FLASH_FRAMES;

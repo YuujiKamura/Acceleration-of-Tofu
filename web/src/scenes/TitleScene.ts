@@ -112,6 +112,9 @@ export class TitleScene extends Phaser.Scene {
     const n = MENU_KEYS.length;
     this.selectedIndex = (this.selectedIndex + delta + n) % n;
     this.refreshMenu();
+    // Port of game/states.py:115-122: play the "menu" SFX after the
+    // selection index has been updated (UP/DOWN both funnel here).
+    AudioManager.get().playSfx("menu");
   }
 
   private refreshMenu(): void {
@@ -129,6 +132,10 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private confirm(): void {
+    // Port of game/states.py:123-128: K_RETURN / K_z plays "special"
+    // before the scene transition. Fire it up-front so the one-shot
+    // dispatches on the live sound manager prior to scene.start().
+    AudioManager.get().playSfx("special");
     const key = MENU_KEYS[this.selectedIndex];
     switch (key) {
       case "menu.single":
