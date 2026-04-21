@@ -345,6 +345,14 @@ export function autoTestAiControl(
   if (st.shieldCooldown > 0) st.shieldCooldown -= 1;
   if (st.jitterFramesLeft > 0) st.jitterFramesLeft -= 1;
 
+  // Hold the dash key down for the entire dashFrames window. Player.ts's
+  // new dash policy (Issue #11) ends the dash immediately on key release
+  // (mirroring Python player.py:566-567), so firing dash=true for a
+  // single activation frame would get cancelled on the very next tick.
+  // Every branch below that newly arms `st.dashFrames` still sets
+  // `keys.dash = true` on its own frame; this just keeps it held.
+  if (st.dashFrames > 0) keys.dash = true;
+
   // --- geometry ---
   const dx = opponent.x - self.x;
   const dy = opponent.y - self.y;

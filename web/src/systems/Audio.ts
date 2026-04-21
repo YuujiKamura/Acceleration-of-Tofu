@@ -49,7 +49,9 @@ const BGM_VOLUMES: Record<BgmKey, number> = {
   rockman_title: 0.3,
 };
 
-const DEFAULT_SFX_VOLUME = 0.7;
+// SFX は BGM (0.3) と耳感で揃えるため同値。Python 原版は set_volume を
+// 全音源で 0.3 に固定 (legacy/pygbag/game/game.py の init_sounds 参照)。
+const DEFAULT_SFX_VOLUME = 0.3;
 
 export class AudioManager {
   private static instance: AudioManager | null = null;
