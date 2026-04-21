@@ -339,7 +339,8 @@ export class Player {
         this.y,
         angle,
         WEAPON_A_DAMAGE,
-        this
+        this,
+        opponent
       );
       spawnProjectile(p);
       this.weaponACooldown = WEAPON_A_COOLDOWN_FRAMES;
@@ -362,7 +363,8 @@ export class Player {
         this.y,
         angle,
         WEAPON_B_DAMAGE,
-        this
+        this,
+        opponent
       );
       spawnProjectile(p);
       this.weaponBCooldown = WEAPON_B_COOLDOWN_FRAMES;

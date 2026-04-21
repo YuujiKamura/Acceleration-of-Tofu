@@ -9,6 +9,7 @@ import { Player } from "../entities/Player";
 import { Projectile } from "../entities/Projectile";
 import { Arena } from "../entities/Arena";
 import { autoTestAiControl, resetAi } from "../systems/SimpleAI";
+import { applyStickyTether, resolvePlayerCollision } from "../systems/Combat";
 
 /**
  * TitleBackgroundScene
@@ -104,6 +105,15 @@ export class TitleBackgroundScene extends Phaser.Scene {
       this
     );
 
+    // --- fermented sticky tether (Python update_gameplay_elements parity) ---
+    if (this.player1.isFermented)
+      applyStickyTether(this.player1, this.player2);
+    if (this.player2.isFermented)
+      applyStickyTether(this.player2, this.player1);
+
+    // --- player-player collision push-back (water_level weighted) ---
+    resolvePlayerCollision(this.player1, this.player2);
+
     for (const p of this.projectiles) {
       p.update(dtScale, ARENA_CENTER_X, ARENA_CENTER_Y, ARENA_RADIUS);
       if (p.isExpired) continue;
@@ -126,6 +136,11 @@ export class TitleBackgroundScene extends Phaser.Scene {
     this.arena.update();
     this.arena.render();
 
+    // --- distance-based camera zoom (mirrors Python draw_to_surface
+    // in legacy/pygbag/game/game.py:431-495). Near → 1.5x zoom,
+    // far → 1.0x zoom, linear in between. Center on player midpoint. ---
+    this.updateCameraZoom();
+
     if (this.time.now - this.lastResetMs > 10_000) {
       for (const p of this.projectiles) p.destroy();
       this.projectiles = [];
@@ -135,6 +150,36 @@ export class TitleBackgroundScene extends Phaser.Scene {
       resetAi(this.player2);
       this.lastResetMs = this.time.now;
     }
+  }
+
+  private updateCameraZoom(): void {
+    const minDistance = 150;
+    const maxDistance = 400;
+    const maxZoom = 1.5;
+    const minZoom = 1.0;
+
+    const distance = Math.hypot(
+      this.player1.x - this.player2.x,
+      this.player1.y - this.player2.y
+    );
+
+    let zoom: number;
+    if (distance <= minDistance) {
+      zoom = maxZoom;
+    } else if (distance >= maxDistance) {
+      zoom = minZoom;
+    } else {
+      zoom =
+        maxZoom -
+        ((distance - minDistance) / (maxDistance - minDistance)) *
+          (maxZoom - minZoom);
+    }
+
+    const midX = (this.player1.x + this.player2.x) / 2;
+    const midY = (this.player1.y + this.player2.y) / 2;
+
+    this.cameras.main.setZoom(zoom);
+    this.cameras.main.centerOn(midX, midY);
   }
 
   private cleanup(): void {

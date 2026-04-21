@@ -88,3 +88,51 @@ export function applyStickyTether(fermented: Player, opponent: Player): void {
   opponent.x += Math.cos(angle) * strength;
   opponent.y += Math.sin(angle) * strength;
 }
+
+/**
+ * Resolve player-vs-player overlap with water_level-weighted push-back.
+ *
+ * 1:1 port of legacy/pygbag/game/game.py::Game.handle_collisions
+ * lines 349-378. If the two player circles overlap, both are shoved
+ * apart along the line between them; the share of the push each player
+ * absorbs is weighted by the OPPONENT's effective mass, so a "heavier"
+ * (higher waterLevel) player is pushed LESS and the lighter player is
+ * pushed MORE.
+ *
+ * Effective mass = 0.5 + (waterLevel/100) * 0.5, i.e. in [0.5, 1.0].
+ * Degenerate case: if the two players are exactly co-located, pick a
+ * random angle to break the tie (same as Python).
+ *
+ * Mutates p1.x/p1.y and p2.x/p2.y directly. No effect if the players
+ * are not overlapping.
+ */
+export function resolvePlayerCollision(p1: Player, p2: Player): void {
+  const dx = p1.x - p2.x;
+  const dy = p1.y - p2.y;
+  const distance = Math.hypot(dx, dy);
+  const minDist = p1.radius + p2.radius;
+  if (distance >= minDist) return;
+
+  let angle: number;
+  let overlap: number;
+  if (distance === 0) {
+    angle = Math.random() * Math.PI * 2;
+    overlap = minDist;
+  } else {
+    angle = Math.atan2(dy, dx);
+    overlap = minDist - distance;
+  }
+
+  const w1 = 0.5 + (p1.waterLevel / 100) * 0.5;
+  const w2 = 0.5 + (p2.waterLevel / 100) * 0.5;
+  const totalW = w1 + w2;
+  const ratio1 = w2 / totalW;
+  const ratio2 = w1 / totalW;
+
+  const cosA = Math.cos(angle);
+  const sinA = Math.sin(angle);
+  p1.x += cosA * (overlap * ratio1);
+  p1.y += sinA * (overlap * ratio1);
+  p2.x -= cosA * (overlap * ratio2);
+  p2.y -= sinA * (overlap * ratio2);
+}

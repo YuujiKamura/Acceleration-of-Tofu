@@ -70,6 +70,23 @@ export class Projectile {
   public isExpired: boolean;
   public sprite: Phaser.GameObjects.Graphics;
 
+  // Homing fields — literal port of Projectile base class in
+  // legacy/pygbag/game/projectile.py:21-22. Per-type values are set in the
+  // switch below to mirror the BeamProjectile/BallisticProjectile subclasses.
+  public homing: boolean;
+  public homingStrength: number;
+  /**
+   * Optional homing target. Since `Player` has no persistent `opponent`
+   * reference (scenes pass the opponent into Player.update each tick), and
+   * the existing Projectile.update(dtScale, cx, cy, arenaRadius) signature
+   * is consumed by 3 scenes + would ripple if changed, we store the target
+   * on the Projectile itself. The caller (Player.ts at fire time, or a
+   * scene passing the opponent through createProjectile's optional arg) is
+   * expected to set this; if null, homing silently no-ops — keeping this
+   * drop-in backward compatible with callers that haven't been updated.
+   */
+  public target: Player | null;
+
   constructor(
     scene: Phaser.Scene,
     type: ProjectileType,
@@ -77,7 +94,8 @@ export class Projectile {
     y: number,
     angleRad: number,
     damage: number,
-    owner: Player
+    owner: Player,
+    target: Player | null = null
   ) {
     this.type = type;
     this.x = x;
@@ -86,6 +104,11 @@ export class Projectile {
     this.damage = damage;
     this.owner = owner;
     this.isExpired = false;
+    this.target = target;
+
+    // Defaults from Python base class (projectile.py:21-22).
+    this.homing = false;
+    this.homingStrength = 0.0;
 
     switch (type) {
       case "beam": {
@@ -93,6 +116,9 @@ export class Projectile {
         this.vy = Math.sin(angleRad) * BEAM_SPEED;
         this.radius = BEAM_RADIUS;
         this.lifetimeFrames = BEAM_LIFETIME;
+        // BeamProjectile: projectile.py:95-96 — homing_strength=0.02
+        this.homing = true;
+        this.homingStrength = 0.02;
         break;
       }
       case "ballistic": {
@@ -100,6 +126,9 @@ export class Projectile {
         this.vy = Math.sin(angleRad) * BALLISTIC_SPEED;
         this.radius = BALLISTIC_RADIUS;
         this.lifetimeFrames = BALLISTIC_LIFETIME;
+        // BallisticProjectile: projectile.py:123-124 — homing_strength=0.03
+        this.homing = true;
+        this.homingStrength = 0.03;
         break;
       }
       case "melee": {
@@ -107,6 +136,7 @@ export class Projectile {
         this.vy = Math.sin(angleRad) * MELEE_SPEED;
         this.radius = MELEE_RADIUS;
         this.lifetimeFrames = MELEE_LIFETIME;
+        // MeleeProjectile: projectile.py:148 — homing = False
         break;
       }
       case "soybean": {
@@ -114,6 +144,7 @@ export class Projectile {
         this.vy = 0;
         this.radius = SOYBEAN_RADIUS;
         this.lifetimeFrames = SOYBEAN_LIFETIME;
+        // SoybeanCollectible is a pickup, not a weapon — non-homing.
         break;
       }
       default: {
@@ -131,6 +162,34 @@ export class Projectile {
   }
 
   /**
+   * Literal port of `Projectile.home_towards(target)` in
+   * legacy/pygbag/game/projectile.py:55-69. Nudges `this.angle` toward the
+   * target direction by `homingStrength` of the shortest-arc angular delta,
+   * then re-derives vx/vy from the new angle and the current speed so the
+   * bullet keeps its magnitude (matters for ballistic, which also has
+   * gravity mutating vy between frames — we reconstitute from angle here
+   * and let gravity re-apply on the next tick, same ordering as Python).
+   */
+  homeTowards(target: { x: number; y: number }): void {
+    const dx = target.x - this.x;
+    const dy = target.y - this.y;
+    const targetAngle = Math.atan2(dy, dx);
+
+    // Wrap diff to [-PI, PI] — Python uses `(diff + pi) % (2*pi) - pi`.
+    // JS `%` returns negative for negative operands, so we fix up after.
+    const TWO_PI = 2 * Math.PI;
+    let angleDiff = ((targetAngle - this.angle + Math.PI) % TWO_PI) - Math.PI;
+    if (angleDiff < -Math.PI) angleDiff += TWO_PI;
+
+    this.angle += angleDiff * this.homingStrength;
+
+    // Re-derive vx/vy from the new angle and current speed magnitude.
+    const speed = Math.hypot(this.vx, this.vy);
+    this.vx = Math.cos(this.angle) * speed;
+    this.vy = Math.sin(this.angle) * speed;
+  }
+
+  /**
    * Advance one logical tick. `dtScale` normalizes delta-time to 60fps ticks
    * (dtScale=1.0 at 60fps, 2.0 at 30fps). Preserves the previous TS pass's
    * ballistic gravity and arena-boundary expiry.
@@ -142,6 +201,15 @@ export class Projectile {
     arenaRadius: number
   ): void {
     if (this.isExpired) return;
+
+    // Homing: projectile.py:35-39 — applied before movement each tick.
+    // Owner is never a valid target (can't home on the shooter), and a
+    // dead target gets skipped to match Python's `if target is None` guard
+    // (Python uses `owner.game.player1/2` which never goes None, but we
+    // treat an !isAlive target as equivalent to None).
+    if (this.homing && this.target && this.target !== this.owner && this.target.isAlive) {
+      this.homeTowards(this.target);
+    }
 
     if (this.type === "ballistic") {
       this.vy += BALLISTIC_GRAVITY * dtScale;
@@ -259,7 +327,8 @@ export function createProjectile(
   y: number,
   angleRad: number,
   damage: number,
-  owner: Player
+  owner: Player,
+  target: Player | null = null
 ): Projectile {
-  return new Projectile(scene, type, x, y, angleRad, damage, owner);
+  return new Projectile(scene, type, x, y, angleRad, damage, owner, target);
 }
