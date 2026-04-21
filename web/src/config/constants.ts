@@ -34,8 +34,9 @@ export const HYPER_CONSUMPTION_RATE = 1.0;
 export const HYPER_ACTIVATION_COST = 50;
 
 // --- Weapon_B burst / special spread (player.py:255-256) ---
-// burst_delay=5 frames between shots, burst_total=10 shots per burst.
-export const WEAPON_B_BURST_TOTAL = 10;
+// Python 原版は burst_total=10 だが、視覚的に弾幕が多すぎる
+// (灰色の豆みたいな弾が大量) という UX 判断で 5 に削減。burst_delay は維持。
+export const WEAPON_B_BURST_TOTAL = 5;
 export const WEAPON_B_BURST_DELAY = 5;
 // player.py:675,678 — special (weapon_b + special) costs 100 hyper gauge.
 export const SPECIAL_HYPER_COST = 100;
