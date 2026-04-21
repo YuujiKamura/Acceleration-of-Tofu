@@ -11,7 +11,6 @@ import pygame
 from game.constants import FPS, SCREEN_HEIGHT, SCREEN_WIDTH
 from game.game import Game
 from game.i18n import set_language, tr
-from game.states import SplashScreenState
 
 
 async def main():
@@ -35,8 +34,9 @@ async def main():
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     clock = pygame.time.Clock()
 
+    # Game.__init__ が既に TitleState を current_state に設定しているので、
+    # ここで追加の change_state は呼ばない (スプラッシュは廃止)。
     game = Game(screen, debug=args.debug)
-    game.change_state(SplashScreenState(game))
 
     running = True
     while running:
