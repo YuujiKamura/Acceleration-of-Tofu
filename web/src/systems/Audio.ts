@@ -49,9 +49,12 @@ const BGM_VOLUMES: Record<BgmKey, number> = {
   rockman_title: 0.3,
 };
 
-// SFX は BGM (0.3) と耳感で揃えるため同値。Python 原版は set_volume を
-// 全音源で 0.3 に固定 (legacy/pygbag/game/game.py の init_sounds 参照)。
-const DEFAULT_SFX_VOLUME = 0.3;
+// SFX は BGM (0.3) より更に低くする。各 .ogg の録音レベルが高く、短い
+// アタック波形はフルレベルでも耳で「一瞬でかい」と感じるため、体感を
+// BGM とバランスさせるべく 0.15 に下げた。Python 原版の set_volume(0.3)
+// は pygame 側のミキサが控えめに合成していたのに対し、WebAudio はピーク
+// が鋭く出るのでこの補正が必要。
+const DEFAULT_SFX_VOLUME = 0.15;
 
 export class AudioManager {
   private static instance: AudioManager | null = null;
