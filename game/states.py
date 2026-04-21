@@ -165,11 +165,14 @@ class TitleState(BaseState):
             return
         current_time = time.time()
         if current_time - self.background_test_start_time > 10:
-            # 10秒ごとに Game を丸ごと再構築するとフォントロード×3とサウンド初期化等で
-            # ブラウザで可視なヒッチが出る。中身 (players/projectiles/effects/AutoTest) の
-            # 状態だけ in-place でリセットする。
+            # 背景デモをリスタートさせるのに必要なのは (1) プレイヤー等の位置リセットと
+            # (2) AutoTestState の残り時間カウンタ初期化の2つだけ。
+            # AutoTestState(...) を毎回 new すると make_font(24) が TTF を再ロードして
+            # 可視なヒッチが出るので、既にそのステートならインスタンス再生成は省く。
             self.background_game.reset_players()
-            self.background_game.change_state(AutoTestState(self.background_game))
+            self.background_game.test_timer = 0
+            if not isinstance(self.background_game.current_state, AutoTestState):
+                self.background_game.change_state(AutoTestState(self.background_game))
             self.background_test_start_time = current_time
         self.background_game.update()
 
