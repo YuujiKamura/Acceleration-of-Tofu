@@ -1,6 +1,7 @@
+import os
 import pygame
 from game.constants import (
-    SCREEN_WIDTH, JAPANESE_FONT_NAMES, DEFAULT_FONT,
+    SCREEN_WIDTH, JAPANESE_FONT_NAMES, DEFAULT_FONT, JP_FONT_PATH,
     WHITE, GRAY, GREEN, ORANGE, RED, YELLOW, CYAN,
     MAX_HEALTH, MAX_HEAT, MAX_HYPER
 )
@@ -11,28 +12,28 @@ class HUD:
     def __init__(self, player1, player2):
         self.player1 = player1
         self.player2 = player2
-        
-        # 日本語フォント対応
-        self.font_name = self.find_japanese_font()
-        self.font = pygame.font.SysFont(self.font_name, 20)
-        self.font_large = pygame.font.SysFont(self.font_name, 24)
+
+        # 日本語フォント対応 (WASM 対応: 同梱 TTF を優先)
+        self.font = self._make_font(20)
+        self.font_large = self._make_font(24)
 
         # 点滅効果用のフレームカウンター
         self.frame_count = 0
-    
-    def find_japanese_font(self):
-        """システムで利用可能な日本語フォントを検索"""
-        available_fonts = pygame.font.get_fonts()
-        available_fonts_lower = [f.lower() for f in available_fonts]
-        
-        for font_name in JAPANESE_FONT_NAMES:
-            font_lower = font_name.lower()
-            if font_lower in available_fonts_lower:
-                index = available_fonts_lower.index(font_lower)
-                return available_fonts[index]  # 元のケースのフォント名を使用
-                
-        # 日本語フォントが見つからない場合はデフォルトを使用
-        return DEFAULT_FONT
+
+    def _make_font(self, size):
+        """pygbag 対応の日本語フォント生成。
+
+        同梱 TTF があれば pygame.font.Font() で直接ロード。無い場合のみ
+        SysFont によるシステムフォント検索にフォールバックする。
+        """
+        if os.path.exists(JP_FONT_PATH):
+            return pygame.font.Font(JP_FONT_PATH, size)
+        available = pygame.font.get_fonts()
+        available_lower = [f.lower() for f in available]
+        for name in JAPANESE_FONT_NAMES:
+            if name.lower() in available_lower:
+                return pygame.font.SysFont(available[available_lower.index(name.lower())], size)
+        return pygame.font.SysFont(DEFAULT_FONT, size)
         
     def draw(self, screen):
         """HUDを描画"""

@@ -83,9 +83,9 @@ class TitleState(BaseState):
         self.selected_item = 0
         self.menu_items = self.game.menu_items
         # フォントをキャッシュ
-        self.title_font = pygame.font.SysFont(self.game.font_name, 72)
-        self.menu_font = pygame.font.SysFont(self.game.font_name, 36)
-        self.version_font = pygame.font.SysFont(self.game.font_name, 20)
+        self.title_font = self.game.make_font(72)
+        self.menu_font = self.game.make_font(36)
+        self.version_font = self.game.make_font(20)
         self.background_surface = pygame.Surface(
             (SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA
         )
@@ -330,7 +330,7 @@ class AutoTestState(SingleVersusGameState):
         super().__init__(game)
         # 自動テストモード固有の初期化（タイマー、時間設定など）
         self.game.test_timer = 0
-        self.test_font = pygame.font.SysFont(self.game.font_name, 24)
+        self.test_font = self.game.make_font(24)
         # TODO: 選択されたテスト時間に基づいてdurationを設定するロジックをGameから移動
 
     # SingleVersusGameStateを継承しているので、handle_escapeは同じ動作になる
@@ -375,8 +375,8 @@ class InstructionsState(BaseState):
     def __init__(self, game: "Game", previous_state=None):
         super().__init__(game)
         self.previous_state = previous_state or TitleState(game)
-        self.title_font = pygame.font.SysFont(self.game.font_name, 48)
-        self.font = pygame.font.SysFont(self.game.font_name, 24)
+        self.title_font = self.game.make_font(48)
+        self.font = self.game.make_font(24)
 
     def handle_input(self, event: pygame.event.Event):
         if event.type == pygame.KEYDOWN:
@@ -470,8 +470,8 @@ class OptionsState(BaseState):
         self.selected_item = 0
         self.menu_items = ["プレイヤー1設定", "プレイヤー2設定", "サウンド設定", "戻る"]
         self.previous_state = TitleState(game)  # デフォルトの前の状態はタイトル
-        self.title_font = pygame.font.SysFont(self.game.font_name, 48)
-        self.menu_font = pygame.font.SysFont(self.game.font_name, 36)
+        self.title_font = self.game.make_font(48)
+        self.menu_font = self.game.make_font(36)
 
     def handle_input(self, event: pygame.event.Event):
         if event.type == pygame.KEYDOWN:
@@ -553,10 +553,10 @@ class KeyConfigState(BaseState):
         self.waiting_for_input = self.game.waiting_for_key_input
         self.config_items = self.game.key_config_items
         self.previous_state = previous_state or OptionsState(game)
-        self.title_font = pygame.font.SysFont(self.game.font_name, 48)
-        self.player_font = pygame.font.SysFont(self.game.font_name, 36)
-        self.menu_font = pygame.font.SysFont(self.game.font_name, 28)
-        self.inst_font = pygame.font.SysFont(self.game.font_name, 20)
+        self.title_font = self.game.make_font(48)
+        self.player_font = self.game.make_font(36)
+        self.menu_font = self.game.make_font(28)
+        self.inst_font = self.game.make_font(20)
 
     def handle_input(self, event: pygame.event.Event):
         if event.type == pygame.KEYDOWN:
@@ -691,8 +691,8 @@ class PauseState(BaseState):
     def __init__(self, game, prev_state=None):
         super().__init__(game)
         # 日本語フォントを使用するように変更
-        self.menu_font = pygame.font.SysFont(self.game.font_name, 36)
-        self.title_font = pygame.font.SysFont(self.game.font_name, 48)
+        self.menu_font = self.game.make_font(36)
+        self.title_font = self.game.make_font(48)
         self.selected_item = 0
         self.menu_items = ["ゲームに戻る", "操作説明", "タイトルに戻る", "ゲーム終了"]
         self.menu_positions = []

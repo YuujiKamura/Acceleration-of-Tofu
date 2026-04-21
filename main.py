@@ -26,8 +26,10 @@ async def main():
     if args.lang:
         set_language(args.lang)
 
+    # mixer は pygame.init() より前に pre_init すること (pygbag/WASM では必須)。
+    # buffer=512 はブラウザの AudioContext コールバック周期より短くアンダーランで音割れするため 1024 に拡大。
+    pygame.mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=1024)
     pygame.init()
-    pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
     pygame.display.set_caption(tr("title"))
 
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))

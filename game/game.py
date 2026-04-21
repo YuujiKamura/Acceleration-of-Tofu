@@ -6,7 +6,7 @@ import random
 from game.constants import (
     ARENA_CENTER_X, ARENA_CENTER_Y, ACTION_NAMES,
     SCREEN_WIDTH, SCREEN_HEIGHT, DEFAULT_KEY_MAPPING_P1, DEFAULT_KEY_MAPPING_P2,
-    MAX_HEALTH, JAPANESE_FONT_NAMES, DEFAULT_FONT,
+    MAX_HEALTH, JAPANESE_FONT_NAMES, DEFAULT_FONT, JP_FONT_PATH,
     TOFU_WHITE, YELLOW, MAGENTA, CYAN,
     SHIELD_DURATION, DASH_COOLDOWN, PLAYER_SPEED, PLAYER_DASH_SPEED,
     MAX_HEAT, MAX_HYPER,
@@ -129,7 +129,19 @@ class Game:
     # ---------------------------------
 
     def init_fonts(self):
-        """日本語フォントの初期化"""
+        """日本語フォントの初期化。
+
+        同梱TTF (assets/fonts/MPLUS1p-Regular.ttf) が存在すればそれを優先する。
+        pygbag/WASM では SysFont 経由のシステムフォント検索が機能しないため、
+        バンドル済み TTF を pygame.font.Font() でロードするのが唯一の確実な経路。
+        存在しない場合のみレガシーな SysFont 検索にフォールバック。
+        """
+        if os.path.exists(JP_FONT_PATH):
+            self.font_path = JP_FONT_PATH
+            self.font_name = JP_FONT_PATH  # states.py等の既存コード互換用
+            return
+
+        self.font_path = None
         available_fonts = pygame.font.get_fonts()
         self.font_name = None
         available_fonts_lower = [f.lower() for f in available_fonts]
@@ -143,6 +155,16 @@ class Game:
 
         if not self.font_name:
             self.font_name = DEFAULT_FONT
+
+    def make_font(self, size):
+        """日本語対応フォントをサイズ指定で生成する統一ヘルパ。
+
+        font_path が設定されていれば TTF 直ロード (pygbag 対応)、
+        そうでなければ SysFont にフォールバック。
+        """
+        if self.font_path and os.path.exists(self.font_path):
+            return pygame.font.Font(self.font_path, size)
+        return pygame.font.SysFont(self.font_name, size)
 
     def init_sounds(self):
         # BGMとSEの読み込み

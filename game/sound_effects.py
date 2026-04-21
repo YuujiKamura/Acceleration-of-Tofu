@@ -131,10 +131,14 @@ def create_sound_effect(effect_type, volume=0.7):
     
     # -1.0～1.0の範囲にクリップ
     stereo = np.clip(stereo, -1.0, 1.0)
-    
+
+    # mixerは16bit int (size=-16) 初期化のため、float32を渡すとWASM上でバイト列が
+    # そのまま解釈されてホワイトノイズになる。必ず int16 に量子化してから渡す。
+    stereo_i16 = (stereo * 32767.0).astype(np.int16)
+
     # PyGame用のサウンドオブジェクトに変換
     try:
-        sound = pygame.sndarray.make_sound(stereo)
+        sound = pygame.sndarray.make_sound(stereo_i16)
         return sound
     except Exception as e:
         print(f"効果音生成エラー: {e}")

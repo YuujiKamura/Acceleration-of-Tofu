@@ -1,3 +1,4 @@
+import os
 import pygame
 
 # ゲームウィンドウの設定
@@ -13,8 +14,11 @@ ARENA_CENTER_Y = SCREEN_HEIGHT // 2
 ARENA_WARNING_RADIUS = ARENA_RADIUS - 20  # 警告リングの半径
 
 # フォント設定
+# WASM(pygbag)ではSysFontのフォント名検索が効かないため、同梱TTFを直接ロードする。
 JAPANESE_FONT_NAMES = ['Yu Gothic', 'Yu Gothic UI', 'MS Gothic', 'Meiryo', 'IPAGothic', 'Noto Sans CJK JP', 'MS UI Gothic', 'MS Mincho', 'BIZ UDゴシック', 'BIZ UDPゴシック']
 DEFAULT_FONT = 'Arial'
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+JP_FONT_PATH = os.path.join(_BASE_DIR, "assets", "fonts", "MPLUS1p-Regular.ttf")
 
 # プレイヤー設定
 PLAYER_SPEED = 5
