@@ -60,15 +60,29 @@ export class PauseScene extends Phaser.Scene {
       })
       .setOrigin(0.5, 0.5);
 
-    this.menuTexts = MENU_ITEMS.map((label, i) =>
-      this.add
+    this.menuTexts = MENU_ITEMS.map((label, i) => {
+      const txt = this.add
         .text(SCREEN_WIDTH / 2, 300 + i * 50, label, {
           fontFamily: "MPLUS1p",
           fontSize: "36px",
           color: COLOR_WHITE,
         })
-        .setOrigin(0.5, 0.5)
-    );
+        .setOrigin(0.5, 0.5);
+      // Tap / hover wiring (keyboard arm below is preserved unchanged).
+      txt.setInteractive({ useHandCursor: true });
+      txt.on("pointerover", () => {
+        if (this.selectedIndex !== i) {
+          this.selectedIndex = i;
+          this.refreshMenu();
+        }
+      });
+      txt.on("pointerdown", () => {
+        this.selectedIndex = i;
+        this.refreshMenu();
+        this.confirm();
+      });
+      return txt;
+    });
 
     this.selectedIndex = 0;
     this.refreshMenu();
@@ -137,6 +151,16 @@ export class PauseScene extends Phaser.Scene {
     this.scene.resume(PARENT_SCENE_KEY);
     this.scene.stop(PARENT_SCENE_KEY);
     this.scene.stop("HUDScene");
+    // Also stop the floating PAUSE button (if any); it is launched by
+    // gameplay scenes and would otherwise remain over TitleScene.
+    if (this.scene.isActive("PauseButtonOverlay")) {
+      this.scene.stop("PauseButtonOverlay");
+    }
+    // AutoTestScene also launches PauseButtonOverlay with its own parent
+    // key; same scene key so the stop above covers it.
+    if (this.scene.isActive("AutoTestScene")) {
+      this.scene.stop("AutoTestScene");
+    }
     this.scene.start("TitleScene");
     this.scene.stop();
   }

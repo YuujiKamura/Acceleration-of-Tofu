@@ -84,9 +84,18 @@ export class AutoTestScene extends Phaser.Scene {
     const kb = this.input.keyboard;
     if (kb) {
       kb.on("keydown-ESC", () => {
+        if (this.scene.isActive("PauseButtonOverlay")) {
+          this.scene.stop("PauseButtonOverlay");
+        }
         this.scene.start("TitleScene");
       });
     }
+
+    // Floating PAUSE button (touch-friendly).  PauseScene's
+    // PARENT_SCENE_KEY is hardcoded to SingleVersusScene so its
+    // returnToTitle path already handles AutoTestScene cleanup via the
+    // explicit isActive("AutoTestScene") branch we added.
+    this.scene.launch("PauseButtonOverlay", { parentKey: "AutoTestScene" });
 
     // paranoia cleanup: if the scene is stopped mid-game, drop projectile
     // sprites so Phaser doesn't leak them.

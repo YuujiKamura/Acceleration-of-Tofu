@@ -88,6 +88,10 @@ export class SingleVersusScene extends Phaser.Scene {
       player2: this.player2,
     });
 
+    // Floating PAUSE button (touch-friendly). Separate overlay scene so it
+    // owns its own input plugin independent of gameplay input handling.
+    this.scene.launch("PauseButtonOverlay", { parentKey: "SingleVersusScene" });
+
     const kb = this.input.keyboard;
     if (kb) {
       kb.on("keydown-ESC", () => {
@@ -106,6 +110,9 @@ export class SingleVersusScene extends Phaser.Scene {
     if (this.roundOver) {
       if (this.time.now >= this.roundEndAt) {
         this.scene.stop("HUDScene");
+        if (this.scene.isActive("PauseButtonOverlay")) {
+          this.scene.stop("PauseButtonOverlay");
+        }
         this.scene.start("TitleScene");
       }
       return;

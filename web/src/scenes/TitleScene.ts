@@ -71,6 +71,20 @@ export class TitleScene extends Phaser.Scene {
         })
         .setOrigin(0.5, 0.5);
       txt.setData("menuKey", key);
+      // Tap / hover wiring (keyboard input above is preserved unchanged).
+      // hover / touchmove onto an item moves the cursor, tap confirms.
+      txt.setInteractive({ useHandCursor: true });
+      txt.on("pointerover", () => {
+        if (this.selectedIndex !== i) {
+          this.selectedIndex = i;
+          this.refreshMenu();
+        }
+      });
+      txt.on("pointerdown", () => {
+        this.selectedIndex = i;
+        this.refreshMenu();
+        this.confirm();
+      });
       return txt;
     });
 
@@ -118,9 +132,18 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private refreshMenu(): void {
+    const isTouch =
+      typeof window !== "undefined" &&
+      ((window.matchMedia && window.matchMedia("(hover: none)").matches) ||
+        (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0));
     this.menuTexts.forEach((txt, i) => {
       const key = txt.getData("menuKey") as MenuKey;
-      const label = tr(key);
+      let label = tr(key);
+      // On touch devices, flag the keyboard-heavy single-versus mode as
+      // PC-recommended so a mobile visitor knows to expect clunky controls.
+      if (isTouch && key === "menu.single") {
+        label = `${label} (PC推奨)`;
+      }
       if (i === this.selectedIndex) {
         txt.setText(`> ${label} <`);
         txt.setColor(COLOR_CYAN);
