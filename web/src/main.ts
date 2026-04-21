@@ -17,6 +17,11 @@ const config: Phaser.Types.Core.GameConfig = {
   height: SCREEN_HEIGHT,
   backgroundColor: 0x000000,
   pixelArt: false,
+  render: {
+    // WebGL のバックバッファを保持する。未設定だと canvas.toDataURL や
+    // renderer.snapshot が黒画像しか返さず e2e ハーネスで何も見えない。
+    preserveDrawingBuffer: true,
+  },
   fps: {
     target: FPS,
     forceSetTimeOut: false,
@@ -33,3 +38,8 @@ const config: Phaser.Types.Core.GameConfig = {
 // D3: audio wiring — initialize AudioManager and install the global M-key mute listener.
 const game = new Phaser.Game(config);
 AudioManager.init(game);
+
+// e2e スナップショットハーネス (web/e2e/snapshot.mjs) から
+// page.evaluate(() => window.game.renderer.snapshot(...)) で呼べるように公開。
+// production でも露出しておく (秘匿情報なし)。
+(window as unknown as { game: Phaser.Game }).game = game;

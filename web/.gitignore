@@ -2,3 +2,7 @@ node_modules/
 dist/
 .vite/
 *.tsbuildinfo
+
+# e2e: generated screenshots are transient verification artifacts,
+# regenerate locally via `node e2e/snapshot.mjs`.
+e2e/snapshots/
