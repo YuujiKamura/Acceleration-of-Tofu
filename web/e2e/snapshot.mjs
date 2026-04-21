@@ -130,6 +130,52 @@ async function main() {
   await page.waitForTimeout(800);
   await capture(page, "resumed", 5);
 
+  // --- DashRing visual test: hold arrow + dash, capture ring orientation ---
+  // Reset to a fresh SingleVersus so P1 is at known starting position.
+  await page.evaluate(() => {
+    const g = window.game;
+    for (const s of g.scene.getScenes(true)) g.scene.stop(s.scene.key);
+    g.scene.start("SingleVersusScene");
+  });
+  await page.waitForTimeout(600);
+
+  // Left dash — motion vector (-1, 0), expected DashRing long axis vertical.
+  await page.keyboard.down("ArrowLeft");
+  await page.waitForTimeout(80);
+  await page.keyboard.down("ShiftLeft");
+  await page.waitForTimeout(80);
+  await capture(page, "dash-left-80ms", 9);
+  await page.waitForTimeout(200);
+  await capture(page, "dash-left-280ms", 10);
+  await page.keyboard.up("ShiftLeft");
+  await page.keyboard.up("ArrowLeft");
+  await page.waitForTimeout(300); // let the rings linger + fade
+
+  // Diagonal dash — motion vector (-1, -1), expected DashRing long axis NE-SW.
+  await page.keyboard.down("ArrowLeft");
+  await page.keyboard.down("ArrowUp");
+  await page.waitForTimeout(60);
+  await page.keyboard.down("ShiftLeft");
+  await page.waitForTimeout(100);
+  await capture(page, "dash-upleft-100ms", 11);
+  await page.keyboard.up("ShiftLeft");
+  await page.keyboard.up("ArrowLeft");
+  await page.keyboard.up("ArrowUp");
+  await page.waitForTimeout(200);
+
+  // Turning-during-dash test: start dashing left, then rotate to up mid-dash.
+  await page.keyboard.down("ArrowLeft");
+  await page.keyboard.down("ShiftLeft");
+  await page.waitForTimeout(120);
+  // mid-dash direction swap
+  await page.keyboard.up("ArrowLeft");
+  await page.keyboard.down("ArrowUp");
+  await page.waitForTimeout(120);
+  await capture(page, "dash-turning-swap", 12);
+  await page.keyboard.up("ShiftLeft");
+  await page.keyboard.up("ArrowUp");
+  await page.waitForTimeout(300);
+
   // --- Jump directly to AutoTestScene via Phaser scene manager. ---
   // UI-driven navigation is flaky (pause scene menu handling seems to
   // drop input) — bypass it for reliable capture.
