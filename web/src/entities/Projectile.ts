@@ -1,21 +1,36 @@
 import Phaser from "phaser";
-import { CYAN, WHITE } from "../config/colors";
+import { CYAN, WHITE, YELLOW, ORANGE } from "../config/colors";
 import type { Player } from "./Player";
 
 /**
  * Projectile
  *
- * Minimal port of game/projectile.py BeamProjectile / BallisticProjectile.
- * A Projectile is a kinematic point that advances at (vx, vy) per frame
- * (60fps base) and is considered expired either when its lifetime
- * decrements to zero or when it leaves the circular arena.
+ * Port of game/projectile.py covering the two active subclasses:
+ *   - BeamProjectile: straight fast line shot (weapon_a)
+ *   - BallisticProjectile: arc-like slower shot with gravity-like vy ramp
+ *     (weapon_b). Expires at lifetimeFrames=60 or when outside arena.
  *
- * It owns a small Phaser GameObject (Arc) so the hosting scene does not
- * need to manage render primitives separately — the caller only has to
- * add the sprite via `scene.add.existing(proj.sprite)` and destroy via
- * `proj.destroy()` when expired.
+ * We keep a single concrete class + `type` discriminator for now instead
+ * of a subclass hierarchy, because:
+ *   (a) the TS code has just two variants, both trivial to branch on;
+ *   (b) the Phaser sprite wrapping doesn't benefit from polymorphism;
+ *   (c) Combat.ts needs to read `type`, `owner`, `damage` uniformly.
+ *
+ * The hosting scene does NOT need to manage render primitives — the Arc
+ * is created in the constructor and destroyed via `proj.destroy()`.
  */
 export type ProjectileType = "beam" | "ballistic";
+
+// Tuned to match game/projectile.py.
+const BEAM_SPEED = 15;
+const BEAM_RADIUS = 4;
+const BEAM_LIFETIME = 60;
+
+const BALLISTIC_SPEED = 8;
+const BALLISTIC_RADIUS = 6;
+const BALLISTIC_LIFETIME = 60; // spec: 60 frames (shorter than beam's reach)
+// per-frame gravity-like pull on vy. Matches the spec's "vy += 0.15/frame".
+const BALLISTIC_GRAVITY = 0.15;
 
 export class Projectile {
   public readonly type: ProjectileType;
@@ -47,22 +62,27 @@ export class Projectile {
     this.isExpired = false;
 
     if (type === "beam") {
-      const speed = 15;
-      this.vx = Math.cos(angleRad) * speed;
-      this.vy = Math.sin(angleRad) * speed;
-      this.radius = 4;
-      this.lifetimeFrames = 60;
+      this.vx = Math.cos(angleRad) * BEAM_SPEED;
+      this.vy = Math.sin(angleRad) * BEAM_SPEED;
+      this.radius = BEAM_RADIUS;
+      this.lifetimeFrames = BEAM_LIFETIME;
     } else {
-      const speed = 8;
-      this.vx = Math.cos(angleRad) * speed;
-      this.vy = Math.sin(angleRad) * speed;
-      this.radius = 6;
-      this.lifetimeFrames = 90;
+      // ballistic
+      this.vx = Math.cos(angleRad) * BALLISTIC_SPEED;
+      this.vy = Math.sin(angleRad) * BALLISTIC_SPEED;
+      this.radius = BALLISTIC_RADIUS;
+      this.lifetimeFrames = BALLISTIC_LIFETIME;
     }
 
-    const color = type === "beam" ? CYAN : 0xffff00;
+    // Color scheme mirrors the Python source: beam=CYAN/MAGENTA,
+    // ballistic=YELLOW/ORANGE. We pick per owner (P1 uses the "cool" variant).
+    const color =
+      type === "beam"
+        ? CYAN
+        : owner.isPlayer1
+        ? YELLOW
+        : ORANGE;
     this.sprite = scene.add.circle(x, y, this.radius, color);
-    // thin white outline so beams read against dark bg
     this.sprite.setStrokeStyle(1, WHITE);
   }
 
@@ -71,8 +91,20 @@ export class Projectile {
    * ticks (i.e. dtScale=1.0 at 60fps, 2.0 at 30fps). For a first
    * milestone we accept a passthrough of 1.0 from the scene.
    */
-  update(dtScale: number, arenaCenterX: number, arenaCenterY: number, arenaRadius: number): void {
+  update(
+    dtScale: number,
+    arenaCenterX: number,
+    arenaCenterY: number,
+    arenaRadius: number
+  ): void {
     if (this.isExpired) return;
+
+    // Ballistic shots get a gravity-like pull on vy each frame. Beam is
+    // a straight line — no acceleration. We apply gravity BEFORE moving
+    // so the first frame of the arc already bends.
+    if (this.type === "ballistic") {
+      this.vy += BALLISTIC_GRAVITY * dtScale;
+    }
 
     this.x += this.vx * dtScale;
     this.y += this.vy * dtScale;
@@ -108,4 +140,22 @@ export class Projectile {
     this.isExpired = true;
     this.sprite.destroy();
   }
+}
+
+/**
+ * Factory helper — preferred over `new Projectile(...)` at call sites
+ * because it lets us later swap to dedicated subclasses without touching
+ * Player.ts. Combat.ts / Player.ts use this; the ctor is kept public so
+ * any external test can still construct directly.
+ */
+export function createProjectile(
+  scene: Phaser.Scene,
+  type: ProjectileType,
+  x: number,
+  y: number,
+  angleRad: number,
+  damage: number,
+  owner: Player
+): Projectile {
+  return new Projectile(scene, type, x, y, angleRad, damage, owner);
 }

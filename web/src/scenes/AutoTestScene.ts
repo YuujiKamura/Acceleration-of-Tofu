@@ -3,11 +3,14 @@ import {
   ARENA_RADIUS,
   ARENA_CENTER_X,
   ARENA_CENTER_Y,
+  ARENA_WARNING_RADIUS,
 } from "../config/constants";
-import { WHITE, CYAN } from "../config/colors";
 import { Player } from "../entities/Player";
 import { Projectile } from "../entities/Projectile";
-import { simpleAiControl } from "../systems/SimpleAI";
+import { Arena } from "../entities/Arena";
+import { autoTestAiControl, resetAi } from "../systems/SimpleAI";
+// D3: audio wiring — stop title BGM when the auto-test demo starts.
+import { AudioManager } from "../systems/Audio";
 
 /**
  * AutoTestScene
@@ -16,15 +19,17 @@ import { simpleAiControl } from "../systems/SimpleAI";
  * game/states.py::AutoTestState for the web build.
  *
  * Responsibilities:
+ *   - instantiate Arena (visuals + geometry helpers)
  *   - spawn two Players on opposite sides of the arena center
- *   - drive both Players with simpleAiControl() every frame
+ *   - drive both Players with autoTestAiControl() every frame, feeding
+ *     it the live projectile list so the AI can dodge
  *   - own the projectile list; advance + collide + prune each tick
- *   - every 10 real-time seconds: reset() both Players and clear
- *     projectiles (does NOT restart the scene — same as Python's
- *     "reset_auto_test_mode" call inside Game.update_auto_test_mode)
+ *   - every 10 real-time seconds: reset() both Players, clear projectiles,
+ *     and drop AI state so timers don't leak across resets
  *   - ESC -> TitleScene
  */
 export class AutoTestScene extends Phaser.Scene {
+  private arena!: Arena;
   private player1!: Player;
   private player2!: Player;
   private projectiles: Projectile[] = [];
@@ -37,13 +42,17 @@ export class AutoTestScene extends Phaser.Scene {
   }
 
   create(): void {
-    // arena ring
-    const g = this.add.graphics();
-    g.lineStyle(2, WHITE, 0.6);
-    g.strokeCircle(ARENA_CENTER_X, ARENA_CENTER_Y, ARENA_RADIUS);
-    // faint inner warning ring for visual reference
-    g.lineStyle(1, CYAN, 0.25);
-    g.strokeCircle(ARENA_CENTER_X, ARENA_CENTER_Y, ARENA_RADIUS - 20);
+    // D3: audio wiring — kill any currently-playing BGM (e.g. title BGM).
+    AudioManager.get().stopBgm();
+
+    this.arena = new Arena(
+      this,
+      ARENA_CENTER_X,
+      ARENA_CENTER_Y,
+      ARENA_RADIUS,
+      ARENA_WARNING_RADIUS
+    );
+    this.arena.create();
 
     this.player1 = new Player(
       this,
@@ -57,6 +66,10 @@ export class AutoTestScene extends Phaser.Scene {
       ARENA_CENTER_Y,
       false
     );
+
+    // fresh AI state for both — matters if the scene is re-entered.
+    resetAi(this.player1);
+    resetAi(this.player2);
 
     this.hudText = this.add.text(10, 10, "", {
       fontFamily: "MPLUS1p",
@@ -83,16 +96,18 @@ export class AutoTestScene extends Phaser.Scene {
     // --- 60fps tick-normalized dt ---
     const dtScale = delta / (1000 / 60);
 
-    // --- AI drives both players ---
-    this.player1.keyStates = simpleAiControl(
+    // --- AI drives both players (now projectile-aware) ---
+    this.player1.keyStates = autoTestAiControl(
       this.player1,
       this.player2,
-      this.frameCounter
+      this.arena,
+      this.projectiles
     );
-    this.player2.keyStates = simpleAiControl(
+    this.player2.keyStates = autoTestAiControl(
       this.player2,
       this.player1,
-      this.frameCounter + 30 // phase-offset so they don't fire in lock-step
+      this.arena,
+      this.projectiles
     );
 
     const spawn = (p: Projectile): void => {
@@ -142,6 +157,9 @@ export class AutoTestScene extends Phaser.Scene {
     }
     this.projectiles = survivors;
 
+    // --- arena warning-ring pulse ---
+    this.arena.update();
+
     // --- periodic reset every 10 real-time seconds ---
     if (this.time.now - this.lastResetMs > 10_000) {
       this.resetDemo();
@@ -166,6 +184,8 @@ export class AutoTestScene extends Phaser.Scene {
     this.projectiles = [];
     this.player1.reset();
     this.player2.reset();
+    resetAi(this.player1);
+    resetAi(this.player2);
   }
 
   private cleanup(): void {

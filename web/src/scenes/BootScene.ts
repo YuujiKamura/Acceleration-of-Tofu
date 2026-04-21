@@ -1,5 +1,7 @@
 import Phaser from "phaser";
 import { SCREEN_WIDTH, SCREEN_HEIGHT } from "../config/constants";
+// D3: audio wiring — preload the 7 .ogg assets before TitleScene starts.
+import { AudioManager } from "../systems/Audio";
 
 /**
  * BootScene
@@ -36,6 +38,9 @@ export class BootScene extends Phaser.Scene {
       await font.load();
       // Register the loaded font so Phaser/Canvas text can use it.
       (document.fonts as FontFaceSet).add(font);
+
+      // D3: audio wiring — preload every .ogg asset before we leave this scene.
+      await AudioManager.get().loadAll(this);
 
       loadingText.destroy();
       this.scene.start("TitleScene");

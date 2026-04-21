@@ -1,6 +1,8 @@
 import Phaser from "phaser";
 import { SCREEN_WIDTH, SCREEN_HEIGHT } from "../config/constants";
 import { tr } from "../i18n";
+// D3: audio wiring — start the title BGM once the scene builds.
+import { AudioManager } from "../systems/Audio";
 
 const MENU_KEYS = [
   "menu.single",
@@ -93,6 +95,9 @@ export class TitleScene extends Phaser.Scene {
     keyboard.on("keydown-DOWN", () => this.moveSelection(1));
     keyboard.on("keydown-ENTER", () => this.confirm());
     keyboard.on("keydown-Z", () => this.confirm());
+
+    // D3: audio wiring — play looping title BGM at the per-key volume cap (0.3).
+    AudioManager.get().playBgm("rockman_title");
   }
 
   private moveSelection(delta: number): void {
