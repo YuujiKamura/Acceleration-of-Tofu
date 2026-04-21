@@ -165,11 +165,10 @@ class TitleState(BaseState):
             return
         current_time = time.time()
         if current_time - self.background_test_start_time > 10:
-            from game.game import Game
-
-            self.background_game = Game(
-                self.game.screen, debug=False, enable_audio=False, enable_title_background=False
-            )
+            # 10秒ごとに Game を丸ごと再構築するとフォントロード×3とサウンド初期化等で
+            # ブラウザで可視なヒッチが出る。中身 (players/projectiles/effects/AutoTest) の
+            # 状態だけ in-place でリセットする。
+            self.background_game.reset_players()
             self.background_game.change_state(AutoTestState(self.background_game))
             self.background_test_start_time = current_time
         self.background_game.update()

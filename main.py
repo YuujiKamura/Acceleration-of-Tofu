@@ -35,10 +35,7 @@ async def main():
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     clock = pygame.time.Clock()
 
-    # pygbag/WASM では前景ゲーム + 背景アドバタイズゲームの2本運用はフレーム時間を
-    # 倍化させ、タイトル画面の描画ループを著しく重くするため、ブラウザ実行時のみ無効化する。
-    enable_title_background = (sys.platform != "emscripten")
-    game = Game(screen, debug=args.debug, enable_title_background=enable_title_background)
+    game = Game(screen, debug=args.debug)
     game.change_state(SplashScreenState(game))
 
     running = True
