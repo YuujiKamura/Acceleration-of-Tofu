@@ -49,12 +49,10 @@ const BGM_VOLUMES: Record<BgmKey, number> = {
   rockman_title: 0.3,
 };
 
-// SFX は BGM (0.3) より更に低くする。各 .ogg の録音レベルが高く、短い
-// アタック波形はフルレベルでも耳で「一瞬でかい」と感じるため、体感を
-// BGM とバランスさせるべく 0.15 に下げた。Python 原版の set_volume(0.3)
-// は pygame 側のミキサが控えめに合成していたのに対し、WebAudio はピーク
-// が鋭く出るのでこの補正が必要。
-const DEFAULT_SFX_VOLUME = 0.15;
+// BGM (0.3) と揃える。Python 原版の set_volume(0.3) と同値。
+// 「一瞬でかい」問題は音量値ではなく WebAudio unlock 直後のゲイン経路の
+// 初期化タイミングが原因 (warmupSfxGraph 参照)。
+const DEFAULT_SFX_VOLUME = 0.3;
 
 export class AudioManager {
   private static instance: AudioManager | null = null;
@@ -80,7 +78,49 @@ export class AudioManager {
     // Also stash on the Game registry so other systems (or a future
     // devtool overlay) can discover the singleton without importing it.
     game.registry.set("audioManager", AudioManager.instance);
+    AudioManager.instance.warmupSfxGraph();
     return AudioManager.instance;
+  }
+
+  /**
+   * "First-play full volume pop" 対策。
+   *
+   * WebAudio の AudioContext は最初のユーザー操作 (keydown/click) で
+   * unlock されるまで suspend されている。Phaser は unlock 後に各サウンド
+   * キーを都度 add+play で再生するが、ある特定のキーが「この AudioContext
+   * で初めて鳴る」タイミングでは GainNode と Source の接続順に数ミリ秒の
+   * 競合があり、gain=0.3 を設定する前の最初のサンプルが 1.0 (フルレベル)
+   * で漏れる。結果「menu ボタンを最初に押した一瞬だけ爆音」になる。
+   *
+   * 対策: unlock を検知した瞬間に全 SFX キーを volume=0 で一度 play →
+   * 即 stop。これで各キーの GainNode + Source graph が事前に確立され、
+   * ユーザー操作で本当の playSfx が呼ばれた時には既に経路が warm になっている。
+   */
+  private warmupSfxGraph(): void {
+    const sm = this.game.sound;
+    const runWarmup = (): void => {
+      for (const key of SFX_KEYS) {
+        if (!this.game.cache.audio.exists(key)) continue;
+        try {
+          const snd = sm.add(key, { volume: 0 });
+          snd.play();
+          snd.stop();
+          snd.destroy();
+        } catch {
+          // AudioContext が想定外の状態でも本番 SFX は後で普通に鳴るので無視。
+        }
+      }
+    };
+    // 既に unlock 済み (非 locking ブラウザ) なら即実行。
+    // それ以外は Phaser が発火する "unlocked" イベントで 1 回だけ実行。
+    // `locked` プロパティは WebAudio backend の型にしか存在しない。
+    const locked =
+      (sm as unknown as { locked?: boolean }).locked === true;
+    if (!locked) {
+      runWarmup();
+    } else {
+      sm.once("unlocked", runWarmup);
+    }
   }
 
   static get(): AudioManager {
