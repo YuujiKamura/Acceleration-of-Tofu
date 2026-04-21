@@ -31,7 +31,10 @@ jobs:
         env:
           PYTHONUTF8: "1"
         run: |
-          pygbag --build --disable-sound-format-error main.py
+          # --ume_block 0: ロード完了後の "Click to start" 画面を挟まず即ゲーム起動。
+          # ブラウザの autoplay ポリシーで音は最初のユーザー入力まで鳴らないが、
+          # タイトル画面まで一直線に出す方を優先。
+          pygbag --build --disable-sound-format-error --ume_block 0 main.py
 
       - name: List build output
         run: ls -la build/web/
