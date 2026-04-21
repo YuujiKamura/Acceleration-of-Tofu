@@ -59,10 +59,12 @@ export class AudioManager {
   private currentBgmKey: BgmKey | null = null;
   private muted = false;
   private keydownHandler: ((ev: KeyboardEvent) => void) | null = null;
+  private indicator: HTMLButtonElement | null = null;
 
   private constructor(game: Phaser.Game) {
     this.game = game;
     this.installGlobalMuteHotkey();
+    this.installMuteIndicator();
   }
 
   static init(game: Phaser.Game): AudioManager {
@@ -172,6 +174,7 @@ export class AudioManager {
   toggleMute(): boolean {
     this.muted = !this.muted;
     this.game.sound.mute = this.muted;
+    this.refreshIndicator();
     return this.muted;
   }
 
@@ -187,6 +190,51 @@ export class AudioManager {
       }
     };
     window.addEventListener("keydown", this.keydownHandler);
+  }
+
+  /**
+   * DOM overlay button showing current mute state. Positioned top-right
+   * outside Phaser's canvas so it persists across all scene transitions
+   * and is clickable without being affected by per-scene input routing.
+   * Click toggles mute; label + color reflect the live state.
+   */
+  private installMuteIndicator(): void {
+    if (typeof document === "undefined") return;
+    const btn = document.createElement("button");
+    btn.id = "mute-indicator";
+    btn.type = "button";
+    btn.style.cssText = [
+      "position: fixed",
+      "top: 12px",
+      "right: 12px",
+      "z-index: 9999",
+      "padding: 6px 12px",
+      "font-family: sans-serif",
+      "font-size: 14px",
+      "font-weight: bold",
+      "border: 2px solid currentColor",
+      "border-radius: 4px",
+      "background: rgba(0, 0, 0, 0.6)",
+      "cursor: pointer",
+      "user-select: none",
+    ].join("; ");
+    btn.addEventListener("click", () => {
+      this.toggleMute();
+    });
+    document.body.appendChild(btn);
+    this.indicator = btn;
+    this.refreshIndicator();
+  }
+
+  private refreshIndicator(): void {
+    if (!this.indicator) return;
+    if (this.muted) {
+      this.indicator.textContent = "♪ 音声 OFF";
+      this.indicator.style.color = "#ff6464";
+    } else {
+      this.indicator.textContent = "♪ 音声 ON";
+      this.indicator.style.color = "#64ff96";
+    }
   }
 
   private isSfxKey(key: string): key is SfxKey {

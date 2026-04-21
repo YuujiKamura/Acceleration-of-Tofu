@@ -12,7 +12,6 @@ type MenuKey = (typeof MENU_KEYS)[number];
 
 const COLOR_CYAN = "#00ffff";
 const COLOR_WHITE = "#ffffff";
-const COLOR_HINT = "#96c8e6";
 const COLOR_VERSION = "#646464";
 
 const VERSION_STRING = "Ver 0.1.0";
@@ -77,13 +76,9 @@ export class TitleScene extends Phaser.Scene {
 
     this.refreshMenu();
 
-    this.add
-      .text(20, SCREEN_HEIGHT - 30, tr("title.mute_hint_on"), {
-        fontFamily: "MPLUS1p",
-        fontSize: "20px",
-        color: COLOR_HINT,
-      })
-      .setOrigin(0, 0.5);
+    // mute state is now shown by the DOM-based AudioManager indicator
+    // (top-right, clickable). The old hardcoded "M: 音声 ON" hint lied
+    // about state, so it's removed.
 
     this.add
       .text(SCREEN_WIDTH - 20, SCREEN_HEIGHT - 30, VERSION_STRING, {
