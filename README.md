@@ -1,8 +1,15 @@
 # アクセラレーションオブ豆腐 / Acceleration of Tofu
 
 [![Play on GitHub Pages](https://img.shields.io/badge/Play-GitHub_Pages-2EA44F?logo=github&logoColor=white)](https://yuujikamura.github.io/Acceleration-of-Tofu/)
-[![WASM via pygbag](https://img.shields.io/badge/runtime-pygbag_WASM-blue)](https://pygame-web.github.io/)
+[![Runtime: Phaser 3 + Vite + TypeScript](https://img.shields.io/badge/runtime-Phaser_3_+_Vite_+_TS-8A2BE2)](https://phaser.io/phaser3)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](#ライセンス--license--许可--라이선스)
+
+> **⚠ Runtime migration in progress.** The browser build is being ported from
+> Python + pygbag (software Canvas2D, WASM-interpreted) to TypeScript + Phaser 3
+> (WebGL2, native browser speed) for performance and hot-reload DX. The
+> WIP TypeScript source lives in [`web/`](web/) and is what GitHub Pages
+> now serves. The previous pygbag/Python source has been archived under
+> [`legacy/pygbag/`](legacy/pygbag/) for reference.
 
 **ブラウザで即プレイ / Play in browser / 浏览器即玩 / 브라우저에서 플레이**:
 👉 https://yuujikamura.github.io/Acceleration-of-Tofu/
