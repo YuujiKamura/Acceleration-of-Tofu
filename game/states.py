@@ -208,6 +208,14 @@ class TitleState(BaseState):
         )
         screen.blit(version_text, version_rect)
 
+        # ミュート切替案内 (左下)
+        mute_key = "title.mute_hint_off" if getattr(self.game, "audio_muted", False) else "title.mute_hint_on"
+        mute_text = self.version_font.render(tr(mute_key), True, (150, 200, 230))
+        mute_rect = mute_text.get_rect(
+            bottomleft=(20, SCREEN_HEIGHT - 20)
+        )
+        screen.blit(mute_text, mute_rect)
+
 
 class SingleVersusGameState(BaseState):
     """ゲームプレイ中の状態（シングル対戦モード）"""

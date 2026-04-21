@@ -48,6 +48,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
 
         # --- splash / main menu ---
         "splash.title": "アクセラレーションオブ豆腐",
+        "title.mute_hint_on": "M: 音声 ON",
+        "title.mute_hint_off": "M: 音声 OFF",
 
         # --- controls screen ---
         "controls.title": "操作説明",
@@ -72,6 +74,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "hud.hyper_active": "Hyper Mode Active! (2x damage)",
 
         "splash.title": "Acceleration of Tofu",
+        "title.mute_hint_on": "M: Sound ON",
+        "title.mute_hint_off": "M: Sound OFF",
 
         "controls.title": "Controls",
         "controls.player1": "Player 1",

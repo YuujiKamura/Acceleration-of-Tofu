@@ -97,6 +97,7 @@ class Game:
         # 効果音とBGM
         self.title_bgm = None
         self.title_bgm_playing = False
+        self.audio_muted = False
         if self.enable_audio and not pygame.mixer.get_init():
             pygame.mixer.init()
         self.sounds = {}
@@ -219,14 +220,30 @@ class Game:
         """
         キー入力をハンドリングし、現在の状態に応じて処理する
         全てのキー入力は current_state を通して処理される
-        
+
         Args:
             key (int): 押されたキーのpygame定義定数
         """
+        # M キーはどの画面からでもミュートを切り替えるグローバルショートカット。
+        if key == pygame.K_m:
+            self.toggle_mute()
+            return
         # ESCキーの特別処理をStatesクラスのhandle_inputに移行
         # 現在の状態にキー入力イベントを渡す
         event = pygame.event.Event(pygame.KEYDOWN, {"key": key})
         self.current_state.handle_input(event)
+
+    def toggle_mute(self):
+        """全体ミュートをトグルする。
+
+        チャンネル音量を 0 / 1 で切り替える方式。Sound 個別の set_volume は
+        呼び出し側が持っている設定値を尊重したいので触らず、チャンネル側で
+        スケール 0 にすることで再生中／今後再生する全ての音を一律に無音化する。
+        """
+        self.audio_muted = not getattr(self, "audio_muted", False)
+        vol = 0.0 if self.audio_muted else 1.0
+        for i in range(pygame.mixer.get_num_channels()):
+            pygame.mixer.Channel(i).set_volume(vol)
     
     def handle_keyup(self, key):
         """
