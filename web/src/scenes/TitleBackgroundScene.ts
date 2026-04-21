@@ -9,42 +9,33 @@ import { Player } from "../entities/Player";
 import { Projectile } from "../entities/Projectile";
 import { Arena } from "../entities/Arena";
 import { autoTestAiControl, resetAi } from "../systems/SimpleAI";
-// D3: audio wiring — stop title BGM when the auto-test demo starts.
-import { AudioManager } from "../systems/Audio";
 
 /**
- * AutoTestScene
+ * TitleBackgroundScene
  *
- * CPU-vs-CPU demo scene. Ports the essential shape of
- * game/states.py::AutoTestState for the web build.
- *
- * Responsibilities:
- *   - instantiate Arena (visuals + geometry helpers)
- *   - spawn two Players on opposite sides of the arena center
- *   - drive both Players with autoTestAiControl() every frame, feeding
- *     it the live projectile list so the AI can dodge
- *   - own the projectile list; advance + collide + prune each tick
- *   - every 10 real-time seconds: reset() both Players, clear projectiles,
- *     and drop AI state so timers don't leak across resets
- *   - ESC -> TitleScene
+ * Python の TitleState は内部で別インスタンスの Game を抱え、裏側で
+ * AutoTestState を回して試合映像をそのままタイトル背景にしていた
+ * (game/states.py:106 前後)。Phaser 上ではそれを 1 つの Scene として
+ * 分離する。AutoTestScene との違いは:
+ *   - ESC ハンドラなし (タイトル入力は TitleScene 側で管理)
+ *   - HUD テキストなし (見た目を汚さない)
+ *   - BGM 制御なし
+ *   - 10 秒リセットだけ継承
+ * TitleScene.create() で scene.launch("TitleBackgroundScene") し、
+ * メニュー確定時および TitleScene の SHUTDOWN で stop する。
  */
-export class AutoTestScene extends Phaser.Scene {
+export class TitleBackgroundScene extends Phaser.Scene {
   private arena!: Arena;
   private player1!: Player;
   private player2!: Player;
   private projectiles: Projectile[] = [];
-  private frameCounter = 0;
   private lastResetMs = 0;
-  private hudText!: Phaser.GameObjects.Text;
 
   constructor() {
-    super({ key: "AutoTestScene" });
+    super({ key: "TitleBackgroundScene" });
   }
 
   create(): void {
-    // D3: audio wiring — kill any currently-playing BGM (e.g. title BGM).
-    AudioManager.get().stopBgm();
-
     this.arena = new Arena(
       this,
       ARENA_CENTER_X,
@@ -67,36 +58,16 @@ export class AutoTestScene extends Phaser.Scene {
       false
     );
 
-    // fresh AI state for both — matters if the scene is re-entered.
     resetAi(this.player1);
     resetAi(this.player2);
 
-    this.hudText = this.add.text(10, 10, "", {
-      fontFamily: "MPLUS1p",
-      fontSize: "16px",
-      color: "#ffff00",
-    });
-
     this.lastResetMs = this.time.now;
-    this.frameCounter = 0;
-
-    const kb = this.input.keyboard;
-    if (kb) {
-      kb.on("keydown-ESC", () => {
-        this.scene.start("TitleScene");
-      });
-    }
-
-    // paranoia cleanup: if the scene is stopped mid-game, drop projectile
-    // sprites so Phaser doesn't leak them.
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.cleanup, this);
   }
 
   override update(_time: number, delta: number): void {
-    // --- 60fps tick-normalized dt ---
     const dtScale = delta / (1000 / 60);
 
-    // --- AI drives both players (now projectile-aware) ---
     this.player1.keyStates = autoTestAiControl(
       this.player1,
       this.player2,
@@ -133,7 +104,6 @@ export class AutoTestScene extends Phaser.Scene {
       this
     );
 
-    // --- projectiles ---
     for (const p of this.projectiles) {
       p.update(dtScale, ARENA_CENTER_X, ARENA_CENTER_Y, ARENA_RADIUS);
       if (p.isExpired) continue;
@@ -146,47 +116,25 @@ export class AutoTestScene extends Phaser.Scene {
       }
     }
 
-    // prune expired
     const survivors: Projectile[] = [];
     for (const p of this.projectiles) {
-      if (p.isExpired) {
-        p.destroy();
-      } else {
-        survivors.push(p);
-      }
+      if (p.isExpired) p.destroy();
+      else survivors.push(p);
     }
     this.projectiles = survivors;
 
-    // --- arena warning-ring pulse ---
     this.arena.update();
     this.arena.render();
 
-    // --- periodic reset every 10 real-time seconds ---
     if (this.time.now - this.lastResetMs > 10_000) {
-      this.resetDemo();
+      for (const p of this.projectiles) p.destroy();
+      this.projectiles = [];
+      this.player1.reset();
+      this.player2.reset();
+      resetAi(this.player1);
+      resetAi(this.player2);
       this.lastResetMs = this.time.now;
     }
-
-    // --- HUD ---
-    const secSince = Math.floor((this.time.now - this.lastResetMs) / 1000);
-    this.hudText.setText(
-      `AUTO-TEST  t=${secSince}s  P1 hp=${Math.round(
-        this.player1.health
-      )}  P2 hp=${Math.round(this.player2.health)}  bullets=${
-        this.projectiles.length
-      }  [ESC]`
-    );
-
-    this.frameCounter += 1;
-  }
-
-  private resetDemo(): void {
-    for (const p of this.projectiles) p.destroy();
-    this.projectiles = [];
-    this.player1.reset();
-    this.player2.reset();
-    resetAi(this.player1);
-    resetAi(this.player2);
   }
 
   private cleanup(): void {

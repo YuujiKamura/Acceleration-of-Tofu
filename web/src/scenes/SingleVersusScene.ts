@@ -7,10 +7,11 @@ import {
   DEFAULT_KEY_MAPPING_P2,
   SCREEN_WIDTH,
   SCREEN_HEIGHT,
+  ARENA_WARNING_RADIUS,
 } from "../config/constants";
-import { CYAN, WHITE } from "../config/colors";
 import { Player, type KeyStates } from "../entities/Player";
 import { Projectile } from "../entities/Projectile";
+import { Arena } from "../entities/Arena";
 import { mapKeyboardToActions } from "../systems/Input";
 import { handleCollisions } from "../systems/Combat";
 
@@ -30,6 +31,7 @@ import { handleCollisions } from "../systems/Combat";
 const ROUND_END_MS = 3_000;
 
 export class SingleVersusScene extends Phaser.Scene {
+  private arena!: Arena;
   private player1!: Player;
   private player2!: Player;
   private projectiles: Projectile[] = [];
@@ -45,12 +47,15 @@ export class SingleVersusScene extends Phaser.Scene {
   }
 
   create(): void {
-    // arena ring
-    const g = this.add.graphics();
-    g.lineStyle(2, WHITE, 0.6);
-    g.strokeCircle(ARENA_CENTER_X, ARENA_CENTER_Y, ARENA_RADIUS);
-    g.lineStyle(1, CYAN, 0.25);
-    g.strokeCircle(ARENA_CENTER_X, ARENA_CENTER_Y, ARENA_RADIUS - 20);
+    // arena: 移植済み Arena クラスで Python arena.py の見た目を再現。
+    this.arena = new Arena(
+      this,
+      ARENA_CENTER_X,
+      ARENA_CENTER_Y,
+      ARENA_RADIUS,
+      ARENA_WARNING_RADIUS
+    );
+    this.arena.create();
 
     this.player1 = new Player(
       this,
@@ -144,6 +149,10 @@ export class SingleVersusScene extends Phaser.Scene {
       }
     }
     this.projectiles = survivors;
+
+    // --- arena warning-ring pulse ---
+    this.arena.update();
+    this.arena.render();
 
     // --- round end ---
     if (this.player1.health <= 0 || this.player2.health <= 0) {

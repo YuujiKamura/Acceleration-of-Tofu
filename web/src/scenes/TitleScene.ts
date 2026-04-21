@@ -42,6 +42,24 @@ export class TitleScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Python TitleState が裏で AutoTestState を回していたのを Phaser に移植。
+    // TitleBackgroundScene を下層で launch して CPU vs CPU の試合を流し、
+    // 100/255 alpha の黒オーバーレイを挟んでからタイトル UI を描く。
+    if (!this.scene.isActive("TitleBackgroundScene")) {
+      this.scene.launch("TitleBackgroundScene");
+    }
+    this.scene.sendToBack("TitleBackgroundScene");
+    this.add
+      .rectangle(
+        SCREEN_WIDTH / 2,
+        SCREEN_HEIGHT / 2,
+        SCREEN_WIDTH,
+        SCREEN_HEIGHT,
+        0x000000,
+        100 / 255
+      )
+      .setOrigin(0.5, 0.5);
+
     this.add
       .text(SCREEN_WIDTH / 2, 150, tr("splash.title"), {
         fontFamily: "MPLUS1p",
@@ -125,9 +143,11 @@ export class TitleScene extends Phaser.Scene {
     switch (key) {
       case "menu.single":
       case "menu.training":
+        this.scene.stop("TitleBackgroundScene");
         this.scene.start("SingleVersusScene");
         return;
       case "menu.autotest":
+        this.scene.stop("TitleBackgroundScene");
         this.scene.start("AutoTestScene");
         return;
       case "menu.controls":
