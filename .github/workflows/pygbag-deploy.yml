@@ -31,7 +31,12 @@ jobs:
         env:
           PYTHONUTF8: "1"
         run: |
-          pygbag --build --disable-sound-format-error main.py
+          pygbag --build \
+            --disable-sound-format-error \
+            --title "Acceleration of Tofu" \
+            --template static/template.tmpl \
+            --icon favicon.png \
+            main.py
 
       - name: List build output
         run: ls -la build/web/

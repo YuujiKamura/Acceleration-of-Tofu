@@ -430,8 +430,11 @@ class Game:
     
     def draw_to_surface(self, surface):
         """サーフェスにゲーム画面を描画（アドバタイズモード用）"""
-        # バックバッファを作成
-        buffer = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        # バックバッファは毎フレーム再生成せずインスタンスにキャッシュする
+        buffer = getattr(self, "_advert_buffer", None)
+        if buffer is None:
+            buffer = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+            self._advert_buffer = buffer
         buffer.fill((0, 0, 0))
 
         dx = self.player1.x - self.player2.x

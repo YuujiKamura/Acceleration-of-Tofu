@@ -86,9 +86,14 @@ class TitleState(BaseState):
         self.title_font = self.game.make_font(72)
         self.menu_font = self.game.make_font(36)
         self.version_font = self.game.make_font(20)
+        # Surface は毎フレーム再生成せずインスタンスに保持する (pygbag で描画コストを下げるため)
         self.background_surface = pygame.Surface(
             (SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA
         )
+        self.overlay_surface = pygame.Surface(
+            (SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA
+        )
+        self.overlay_surface.fill((0, 0, 0, 100))
         self.background_game = None
         self.background_test_start_time = 0.0
 
@@ -175,9 +180,8 @@ class TitleState(BaseState):
         if self.background_game:
             self.background_surface.fill((0, 0, 0, 0))
             self.background_game.draw_to_surface(self.background_surface)
-            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 100))
-            self.background_surface.blit(overlay, (0, 0))
+            # overlay Surface は __init__ でキャッシュ済みのものを使い回す (毎フレーム alloc を避ける)
+            self.background_surface.blit(self.overlay_surface, (0, 0))
             screen.blit(self.background_surface, (0, 0))
 
         # ゲームタイトル
