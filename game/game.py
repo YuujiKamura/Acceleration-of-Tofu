@@ -206,7 +206,9 @@ class Game:
 
     def play_title_bgm(self):
         if self.title_bgm and not self.title_bgm_playing:
-            self.title_bgm.play(-1)
+            # スプラッシュ廃止で起動直後にいきなり BGM が鳴ってしまわないよう、
+            # 1.5 秒かけて無音から設定音量までフェードインさせる。
+            self.title_bgm.play(-1, fade_ms=1500)
             self.title_bgm_playing = True
 
     def stop_title_bgm(self):
