@@ -7,6 +7,7 @@ import {
   PLAYER_DASH_SPEED,
   DASH_RING_DURATION,
   DASH_COOLDOWN,
+  DASH_TURN_SPEED,
   SHIELD_DURATION,
   SHIELD_COOLDOWN,
   HYPER_DURATION,
@@ -123,6 +124,10 @@ export class Player {
   // py lines 223-224
   private dashRingCounter = 0;
   private readonly dashRingInterval = 4;
+  // py ctor: self.dash_direction_x/y = 0 — stored direction used by LP filter
+  // and passed to DashRing on spawn (after the low-pass filter smoothing).
+  private dashDirectionX = 0;
+  private dashDirectionY = 0;
   private shieldFrames = 0;
   private shieldCooldown = 0;
   private hyperActiveFrames = 0;
@@ -221,17 +226,6 @@ export class Player {
     // --- aging progresses passively; matches Python's +0.02/frame ---
     this.aging = Math.min(100, this.aging + 0.02 * dtScale);
 
-    // --- dash activation: edge-triggered (cooldown gated) ---
-    if (
-      this.keyStates.dash &&
-      this.dashCooldown <= 0 &&
-      this.dashFrames <= 0
-    ) {
-      this.dashFrames = DASH_RING_DURATION;
-      this.dashCooldown = DASH_RING_DURATION + DASH_COOLDOWN;
-      this.heat = Math.min(MAX_HEAT, this.heat + 2); // small heat tick on start
-    }
-
     // --- shield activation: edge-triggered (cooldown gated) ---
     if (
       this.keyStates.shield &&
@@ -270,48 +264,122 @@ export class Player {
     }
 
     // --- movement ---
+    // py lines 501-515: build input vector + has_input flag
     let dx = 0;
     let dy = 0;
     if (this.keyStates.up) dy -= 1;
     if (this.keyStates.down) dy += 1;
     if (this.keyStates.left) dx -= 1;
     if (this.keyStates.right) dx += 1;
+    const hasInput = dx !== 0 || dy !== 0;
+    // py lines 540-544: normalize diagonals so speed stays constant
     if (dx !== 0 && dy !== 0) {
       const inv = 1 / Math.sqrt(2);
       dx *= inv;
       dy *= inv;
     }
-    // dash multiplies base speed by (DASH_SPEED/BASE_SPEED). When the dash
-    // window expires, speed naturally drops back. Matches Python's
-    // `self.dash_speed if self.is_dashing else self.speed`.
-    const speed = this.isDashing
-      ? PLAYER_SPEED * (PLAYER_DASH_SPEED / PLAYER_SPEED)
-      : PLAYER_SPEED;
-    this.vx = dx * speed;
-    this.vy = dy * speed;
+
+    // py lines 547-549: heat >= MAX_HEAT force-ends dash (pre-activation check)
+    if (this.heat >= MAX_HEAT) {
+      this.dashFrames = 0;
+      // (overheat flag is not yet modelled in TS; mirrors Python's
+      // `self.is_overheated = True` — state carried implicitly.)
+    }
+
+    // py lines 552-567: dash activation + end-on-release.
+    // py:552 uses the literal 200 (not MAX_HEAT=300) — it's an "almost
+    // overheated" soft gate, stricter than the hard force-end at MAX_HEAT.
+    const heatOkForDash = this.heat < 200;
+    if (
+      this.keyStates.dash &&
+      this.dashCooldown <= 0 &&
+      !this.isDashing &&
+      hasInput &&
+      heatOkForDash
+    ) {
+      // py 555-558: store direction at activation
+      this.dashFrames = DASH_RING_DURATION;
+      this.dashCooldown = DASH_RING_DURATION + DASH_COOLDOWN;
+      this.dashDirectionX = dx;
+      this.dashDirectionY = dy;
+      // py 560-561: +20 heat on activation
+      this.heat = Math.min(MAX_HEAT, this.heat + 20);
+      // py 563: spawn initial DashRing in input direction
+      this.dashRings.push(
+        new DashRing(
+          scene,
+          this.x,
+          this.y,
+          DASH_RING_DURATION,
+          dx,
+          dy
+        )
+      );
+      // py 565: counter reset
+      this.dashRingCounter = 0;
+    } else if (!this.keyStates.dash) {
+      // py 566-567: releasing dash immediately ends the dash
+      this.dashFrames = 0;
+    }
+
+    // py lines 570-596: while dashing — re-check overheat, LP-turn, trail
+    if (this.isDashing) {
+      // py 573-576: heat may have crossed MAX_HEAT this frame
+      if (this.heat >= MAX_HEAT) {
+        this.dashFrames = 0;
+      } else if (hasInput && (dx !== 0 || dy !== 0)) {
+        // py 583-584: low-pass filter dash direction toward input.
+        // Python runs at fixed 60Hz with alpha=0.15 per frame. We scale by
+        // dtScale to keep turn-rate time-invariant when the browser drops
+        // frames; Python behaviour is recovered when dtScale === 1.
+        const alpha = DASH_TURN_SPEED * dtScale;
+        this.dashDirectionX =
+          this.dashDirectionX * (1 - alpha) + dx * alpha;
+        this.dashDirectionY =
+          this.dashDirectionY * (1 - alpha) + dy * alpha;
+        // py 586-590: renormalize
+        const len = Math.sqrt(
+          this.dashDirectionX * this.dashDirectionX +
+            this.dashDirectionY * this.dashDirectionY
+        );
+        if (len > 0) {
+          this.dashDirectionX /= len;
+          this.dashDirectionY /= len;
+        }
+        // py 592-596: trail DashRing at fixed interval
+        this.dashRingCounter += dtScale;
+        if (this.dashRingCounter >= this.dashRingInterval) {
+          this.dashRings.push(
+            new DashRing(
+              scene,
+              this.x,
+              this.y,
+              DASH_RING_DURATION,
+              this.dashDirectionX,
+              this.dashDirectionY
+            )
+          );
+          this.dashRingCounter = 0;
+        }
+      }
+    }
+
+    // py lines 598-599: speed = dash_speed if is_dashing else speed.
+    // While dashing, vx/vy follow dashDirection (LP-filtered); otherwise
+    // follow raw input.
+    const speed = this.isDashing ? PLAYER_DASH_SPEED : PLAYER_SPEED;
+    if (this.isDashing) {
+      this.vx = this.dashDirectionX * speed;
+      this.vy = this.dashDirectionY * speed;
+    } else {
+      this.vx = dx * speed;
+      this.vy = dy * speed;
+    }
     this.x += this.vx * dtScale;
     this.y += this.vy * dtScale;
 
     // py line 353: facing_angle = atan2(opponent.y - y, opponent.x - x)
     this.facingAngle = Math.atan2(opponent.y - this.y, opponent.x - this.x);
-
-    // Dash ring trail while dashing (py lines 593-596)
-    if (this.isDashing) {
-      this.dashRingCounter += dtScale;
-      if (this.dashRingCounter >= this.dashRingInterval) {
-        this.dashRings.push(
-          new DashRing(
-            scene,
-            this.x,
-            this.y,
-            DASH_RING_DURATION,
-            this.vx,
-            this.vy
-          )
-        );
-        this.dashRingCounter = 0;
-      }
-    }
 
     // --- arena clamp (circle) ---
     const cdx = this.x - arenaCenterX;
@@ -575,6 +643,8 @@ export class Player {
     this.dashFrames = 0;
     this.dashCooldown = 0;
     this.dashRingCounter = 0;
+    this.dashDirectionX = 0;
+    this.dashDirectionY = 0;
     this.shieldFrames = 0;
     this.shieldCooldown = 0;
     this.hyperActiveFrames = 0;

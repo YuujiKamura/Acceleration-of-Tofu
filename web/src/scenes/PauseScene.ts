@@ -29,9 +29,21 @@ export class PauseScene extends Phaser.Scene {
   }
 
   create(): void {
-    // Semi-transparent dark overlay
+    // Ensure PauseScene renders above gameplay + HUD, regardless of
+    // the scene-list registration order in main.ts. Phaser's "scene
+    // launch" appends the scene to the display list, but subsequent
+    // scene starts/restarts can reorder; bringing ourselves to top
+    // here is idempotent and cheap.
+    this.scene.bringToTop();
+
+    // Semi-transparent dark overlay. Python PauseState used
+    // pygame.SRCALPHA with fill((0, 0, 0, 128)) which is alpha 128/255
+    // (~0.502). In WebGL the composited result over bright HUD text and
+    // arena circles reads weaker than on pygame's software blit, so we
+    // bump to 0.7 to keep the visual distinction the snapshot pass was
+    // looking for (bug #8). The PAUSE / menu text color is unchanged.
     const overlay = this.add.graphics();
-    overlay.fillStyle(0x000000, 0.5);
+    overlay.fillStyle(0x000000, 0.7);
     overlay.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
     // "PAUSE" title in 72pt cyan MPLUS1p
@@ -89,12 +101,37 @@ export class PauseScene extends Phaser.Scene {
         console.log("[PauseScene] TODO: InstructionsScene");
         return;
       case 2:
-        this.scene.stop(PARENT_SCENE_KEY);
-        this.scene.stop("HUDScene");
-        this.scene.stop();
-        this.scene.start("TitleScene");
+        this.returnToTitle();
         return;
     }
+  }
+
+  /**
+   * Python PauseState (legacy/pygbag/game/states.py:744-745) does
+   * `self.game.change_state(TitleState(self.game))` which tears down
+   * the current gameplay state and installs Title. Phaser's scene
+   * system is different: SingleVersusScene is paused (not stopped) and
+   * HUDScene is launched as an overlay, so we have to stop both
+   * siblings explicitly before handing control to TitleScene.
+   *
+   * Phaser quirk the old implementation tripped over: calling
+   * `scene.stop("SingleVersusScene")` on a *paused* scene does work,
+   * but the paused scene still has its input plugin paused, which
+   * occasionally swallowed the subsequent keyboard events on
+   * TitleScene when transitioning directly. Resuming the parent first
+   * normalizes the plugin state, and then the stop cleanly shuts it
+   * down (the SHUTDOWN handler in SingleVersusScene.cleanup disposes
+   * projectiles / result text). We also stop HUDScene (launched as an
+   * overlay, not auto-stopped by the parent) and finally start
+   * TitleScene. We stop ourselves last so the start() call above is
+   * still dispatched by a live scene.
+   */
+  private returnToTitle(): void {
+    this.scene.resume(PARENT_SCENE_KEY);
+    this.scene.stop(PARENT_SCENE_KEY);
+    this.scene.stop("HUDScene");
+    this.scene.start("TitleScene");
+    this.scene.stop();
   }
 
   private resumeGame(): void {

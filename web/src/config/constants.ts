@@ -19,6 +19,9 @@ export const PLAYER_SPEED = 5;
 export const PLAYER_DASH_SPEED = 9;
 export const DASH_RING_DURATION = 30;
 export const DASH_COOLDOWN = 5;
+// Ported from game/player.py ctor: self.dash_turn_speed = 0.15
+// Low-pass filter alpha for dash direction turning (per-frame @ 60Hz).
+export const DASH_TURN_SPEED = 0.15;
 export const SHIELD_DURATION = 50;
 export const SHIELD_COOLDOWN = 120;
 export const HYPER_DURATION = 180;

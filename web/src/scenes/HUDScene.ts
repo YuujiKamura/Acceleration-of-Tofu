@@ -18,6 +18,17 @@ import type { Player } from "../entities/Player";
  * heat -> hyper -> water -> beans -> aging. Blinks the heat and hyper
  * bars on 60-frame boundaries when threshold is crossed.
  *
+ * P1 (isLeft=true) is left-anchored at (20, 20) — bars extend rightward,
+ * numeric labels sit to the right of each bar.
+ *
+ * P2 (isLeft=false) is right-anchored. The Python port positioned P2 at
+ * SCREEN_WIDTH - 220 = 1060 and reused the P1 left-anchored layout, which
+ * pushes numeric labels past the 1280-wide canvas ("ヒ…", "水分: 1…",
+ * "豆: 10…" are clipped). We mirror the layout around the P2 right edge
+ * (= x + HEALTH_W = 1260) so every gauge and label lives inside the
+ * canvas: bars are right-aligned to that edge and numeric labels sit to
+ * the LEFT of their bar, right-anchored at bar_left - 10.
+ *
  * We cache Phaser GameObjects (text + Graphics) and only call
  * setText / .clear()+fillRect() each frame — never allocate per-tick.
  */
@@ -74,6 +85,10 @@ interface PlayerHudSlot {
   player: Player;
   x: number;
   y: number;
+  isLeft: boolean;
+  // Right edge anchor (only meaningful when isLeft=false). Equals
+  // x + HEALTH_W so the widest bar still lives inside the canvas.
+  rightEdge: number;
   nameText: Phaser.GameObjects.Text;
   heatText: Phaser.GameObjects.Text;
   hyperText: Phaser.GameObjects.Text;
@@ -112,6 +127,15 @@ export class HUDScene extends Phaser.Scene {
     this.frameCount = 0;
   }
 
+  /**
+   * Compute the left-pixel of a gauge for the given slot/width.
+   * P1: always `x` (Python behavior).
+   * P2: right-align against rightEdge, so `rightEdge - width`.
+   */
+  private barLeft(slot: PlayerHudSlot, width: number): number {
+    return slot.isLeft ? slot.x : slot.rightEdge - width;
+  }
+
   private buildSlot(
     player: Player,
     x: number,
@@ -119,34 +143,86 @@ export class HUDScene extends Phaser.Scene {
     isLeft: boolean
   ): PlayerHudSlot {
     const nameLabel = isLeft ? "プレイヤー1" : "プレイヤー2";
+    const rightEdge = x + HEALTH_W;
 
-    const nameText = this.add.text(x, y + NAME_DY, nameLabel, FONT);
+    // Name: P1 left-anchored at (x, y); P2 right-anchored at rightEdge.
+    const nameText = this.add.text(
+      isLeft ? x : rightEdge,
+      y + NAME_DY,
+      nameLabel,
+      FONT
+    );
+    if (!isLeft) nameText.setOrigin(1, 0);
 
-    // numeric labels — positioned to the right of each bar
-    const heatText = this.add.text(x + HEAT_W + 10, y + HEAT_DY, "", FONT);
-    const hyperText = this.add.text(x + HYPER_W + 10, y + HYPER_DY, "", FONT);
-    const waterText = this.add.text(x + WATER_W + 10, y + WATER_DY, "", FONT);
-    const beanText = this.add.text(x + BEAN_W + 10, y + BEAN_DY - 5, "", FONT);
+    // Numeric labels.
+    // P1 (Python): positioned at `bar_x + bar_width + 10`, i.e. right of bar.
+    // P2 (mirror): right-anchored at `bar_left - 10`, i.e. left of bar.
+    //   bar_left for P2 = rightEdge - W.
+    //
+    // For P1, BEAN/AGING use `y + DY - 5` per Python (smaller bars,
+    // nudged up 5px to vertically center with the 20px font). We mirror
+    // that offset on P2 so labels align with their bars.
+    const p1NumericX = (w: number) => x + w + 10; // P1
+    const p2NumericX = (w: number) => rightEdge - w - 10; // P2
+
+    const heatText = this.add.text(
+      isLeft ? p1NumericX(HEAT_W) : p2NumericX(HEAT_W),
+      y + HEAT_DY,
+      "",
+      FONT
+    );
+    if (!isLeft) heatText.setOrigin(1, 0);
+
+    const hyperText = this.add.text(
+      isLeft ? p1NumericX(HYPER_W) : p2NumericX(HYPER_W),
+      y + HYPER_DY,
+      "",
+      FONT
+    );
+    if (!isLeft) hyperText.setOrigin(1, 0);
+
+    const waterText = this.add.text(
+      isLeft ? p1NumericX(WATER_W) : p2NumericX(WATER_W),
+      y + WATER_DY,
+      "",
+      FONT
+    );
+    if (!isLeft) waterText.setOrigin(1, 0);
+
+    const beanText = this.add.text(
+      isLeft ? p1NumericX(BEAN_W) : p2NumericX(BEAN_W),
+      y + BEAN_DY - 5,
+      "",
+      FONT
+    );
+    if (!isLeft) beanText.setOrigin(1, 0);
+
     const agingText = this.add.text(
-      x + AGING_W + 10,
+      isLeft ? p1NumericX(AGING_W) : p2NumericX(AGING_W),
       y + AGING_DY - 5,
       "",
       FONT
     );
+    if (!isLeft) agingText.setOrigin(1, 0);
 
-    // "OVERHEAT" blinker, centered over the heat bar
+    // "OVERHEAT" blinker, centered over the heat bar.
+    // Heat bar center = barLeft + HEAT_W/2. For P1 that's x + HEAT_W/2;
+    // for P2 that's (rightEdge - HEAT_W) + HEAT_W/2 = rightEdge - HEAT_W/2.
+    const heatBarLeft = isLeft ? x : rightEdge - HEAT_W;
     const overheatText = this.add
-      .text(x + HEAT_W / 2, y + HEAT_DY - 30, tr("hud.overheat"), FONT_LARGE)
+      .text(heatBarLeft + HEAT_W / 2, y + HEAT_DY - 30, tr("hud.overheat"), FONT_LARGE)
       .setOrigin(0.5, 0);
     overheatText.setVisible(false);
 
-    // Hyper active status text, shown below all bars
+    // Hyper active status text, shown below all bars.
+    // P1: left-anchored at x. P2: right-anchored at rightEdge.
     const hyperActiveText = this.add.text(
-      x,
+      isLeft ? x : rightEdge,
       y + HYPER_STATUS_DY,
       tr("hud.hyper_active"),
       FONT_HYPER_STATUS
     );
+    if (!isLeft) hyperActiveText.setOrigin(1, 0);
     hyperActiveText.setVisible(false);
 
     const graphics = this.add.graphics();
@@ -155,6 +231,8 @@ export class HUDScene extends Phaser.Scene {
       player,
       x,
       y,
+      isLeft,
+      rightEdge,
       nameText,
       heatText,
       hyperText,
@@ -176,7 +254,6 @@ export class HUDScene extends Phaser.Scene {
 
   private drawSlot(slot: PlayerHudSlot): void {
     const p = slot.player;
-    const x = slot.x;
     const y = slot.y;
     const g = slot.graphics;
     g.clear();
@@ -184,15 +261,16 @@ export class HUDScene extends Phaser.Scene {
     // --- Health bar ---
     const hp = Math.max(0, p.health);
     const hpPct = Math.max(0, Math.min(1, hp / MAX_HEALTH));
-    g.fillStyle(C_GRAY, 1).fillRect(x, y + HEALTH_DY, HEALTH_W, HEALTH_H);
+    const healthX = this.barLeft(slot, HEALTH_W);
+    g.fillStyle(C_GRAY, 1).fillRect(healthX, y + HEALTH_DY, HEALTH_W, HEALTH_H);
     g.fillStyle(C_GREEN, 1).fillRect(
-      x,
+      healthX,
       y + HEALTH_DY,
       HEALTH_W * hpPct,
       HEALTH_H
     );
     g.lineStyle(2, C_WHITE, 1).strokeRect(
-      x,
+      healthX,
       y + HEALTH_DY,
       HEALTH_W,
       HEALTH_H
@@ -202,18 +280,19 @@ export class HUDScene extends Phaser.Scene {
     const heat = p.heat;
     const heatPct = Math.max(0, Math.min(1, heat / MAX_HEAT));
     const isOverheat = heat >= 200;
-    g.fillStyle(C_GRAY, 1).fillRect(x, y + HEAT_DY, HEAT_W, HEAT_H);
+    const heatX = this.barLeft(slot, HEAT_W);
+    g.fillStyle(C_GRAY, 1).fillRect(heatX, y + HEAT_DY, HEAT_W, HEAT_H);
     let heatColor = C_RED;
     if (isOverheat) {
       heatColor = this.frameCount % 30 < 15 ? C_ORANGE : C_RED;
     }
     g.fillStyle(heatColor, 1).fillRect(
-      x,
+      heatX,
       y + HEAT_DY,
       HEAT_W * heatPct,
       HEAT_H
     );
-    g.lineStyle(2, C_WHITE, 1).strokeRect(x, y + HEAT_DY, HEAT_W, HEAT_H);
+    g.lineStyle(2, C_WHITE, 1).strokeRect(heatX, y + HEAT_DY, HEAT_W, HEAT_H);
     slot.heatText.setText(tr("hud.heat", { value: Math.floor(heat) }));
 
     // Overheat blinker text
@@ -227,52 +306,56 @@ export class HUDScene extends Phaser.Scene {
     const hyper = p.hyperGauge;
     const hyperPct = Math.max(0, Math.min(1, hyper / MAX_HYPER));
     const isHyperReady = hyper >= 100;
-    g.fillStyle(C_GRAY, 1).fillRect(x, y + HYPER_DY, HYPER_W, HYPER_H);
+    const hyperX = this.barLeft(slot, HYPER_W);
+    g.fillStyle(C_GRAY, 1).fillRect(hyperX, y + HYPER_DY, HYPER_W, HYPER_H);
     let hyperColor = C_CYAN;
     if (isHyperReady) {
       hyperColor = this.frameCount % 30 < 15 ? C_YELLOW : C_CYAN;
     }
     g.fillStyle(hyperColor, 1).fillRect(
-      x,
+      hyperX,
       y + HYPER_DY,
       HYPER_W * hyperPct,
       HYPER_H
     );
-    g.lineStyle(2, C_WHITE, 1).strokeRect(x, y + HYPER_DY, HYPER_W, HYPER_H);
+    g.lineStyle(2, C_WHITE, 1).strokeRect(hyperX, y + HYPER_DY, HYPER_W, HYPER_H);
     slot.hyperText.setText(tr("hud.hyper", { value: Math.floor(hyper) }));
 
     // --- Water bar ---
     const water = p.waterLevel;
     const waterPct = Math.max(0, Math.min(1, water / 100));
-    g.fillStyle(C_GRAY, 1).fillRect(x, y + WATER_DY, WATER_W, WATER_H);
+    const waterX = this.barLeft(slot, WATER_W);
+    g.fillStyle(C_GRAY, 1).fillRect(waterX, y + WATER_DY, WATER_W, WATER_H);
     g.fillStyle(C_WATER, 1).fillRect(
-      x,
+      waterX,
       y + WATER_DY,
       WATER_W * waterPct,
       WATER_H
     );
-    g.lineStyle(2, C_WHITE, 1).strokeRect(x, y + WATER_DY, WATER_W, WATER_H);
+    g.lineStyle(2, C_WHITE, 1).strokeRect(waterX, y + WATER_DY, WATER_W, WATER_H);
     slot.waterText.setText(tr("hud.water", { value: Math.floor(water) }));
 
     // --- Bean bar (thin) ---
     const beans = p.beans;
     const beanPct = Math.max(0, Math.min(1, beans / 100));
-    g.fillStyle(C_GRAY, 1).fillRect(x, y + BEAN_DY, BEAN_W, BEAN_H);
-    g.fillStyle(C_BEAN, 1).fillRect(x, y + BEAN_DY, BEAN_W * beanPct, BEAN_H);
-    g.lineStyle(1, C_WHITE, 1).strokeRect(x, y + BEAN_DY, BEAN_W, BEAN_H);
+    const beanX = this.barLeft(slot, BEAN_W);
+    g.fillStyle(C_GRAY, 1).fillRect(beanX, y + BEAN_DY, BEAN_W, BEAN_H);
+    g.fillStyle(C_BEAN, 1).fillRect(beanX, y + BEAN_DY, BEAN_W * beanPct, BEAN_H);
+    g.lineStyle(1, C_WHITE, 1).strokeRect(beanX, y + BEAN_DY, BEAN_W, BEAN_H);
     slot.beanText.setText(tr("hud.bean", { value: Math.floor(beans) }));
 
     // --- Aging bar (thin) ---
     const aging = p.aging;
     const agingPct = Math.max(0, Math.min(1, aging / 100));
-    g.fillStyle(C_GRAY, 1).fillRect(x, y + AGING_DY, AGING_W, AGING_H);
+    const agingX = this.barLeft(slot, AGING_W);
+    g.fillStyle(C_GRAY, 1).fillRect(agingX, y + AGING_DY, AGING_W, AGING_H);
     g.fillStyle(C_AGING, 1).fillRect(
-      x,
+      agingX,
       y + AGING_DY,
       AGING_W * agingPct,
       AGING_H
     );
-    g.lineStyle(1, C_WHITE, 1).strokeRect(x, y + AGING_DY, AGING_W, AGING_H);
+    g.lineStyle(1, C_WHITE, 1).strokeRect(agingX, y + AGING_DY, AGING_W, AGING_H);
     slot.agingText.setText(tr("hud.aging", { value: Math.floor(aging) }));
 
     // --- Hyper-active status ---
