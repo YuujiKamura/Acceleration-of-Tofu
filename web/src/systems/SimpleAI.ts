@@ -397,7 +397,7 @@ export function autoTestAiControl(
     // Dash out of the way if we're allowed.
     if (st.dashCooldown <= 0) {
       keys.dash = true;
-      st.dashFrames = 20;
+      st.dashFrames = 40;
       st.dashCooldown = 60;
     }
     // Can't dodge in time? Pop shield. Python uses 0.7; we gate on a
@@ -417,17 +417,17 @@ export function autoTestAiControl(
     if (st.dashFrames > 0) {
       keys.dash = true;
     } else if (st.dashCooldown <= 0) {
-      st.dashFrames = 30;
+      st.dashFrames = 60;
       st.dashCooldown = 90;
       keys.dash = true;
     }
   } else if (st.style === "orbit" && rand(st) < 0.01 && st.dashCooldown <= 0) {
     // Occasional strafe dash during orbits — makes CPU harder to track.
-    st.dashFrames = 12;
+    st.dashFrames = 24;
     st.dashCooldown = 120;
     keys.dash = true;
   } else if (st.style === "chaos" && rand(st) < 0.02 && st.dashCooldown <= 0) {
-    st.dashFrames = 12;
+    st.dashFrames = 24;
     st.dashCooldown = 90;
     keys.dash = true;
   }
