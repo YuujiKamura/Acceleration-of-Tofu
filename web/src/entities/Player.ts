@@ -14,9 +14,21 @@ import {
   HYPER_CONSUMPTION_RATE,
   HYPER_ACTIVATION_COST,
   HEAT_DECREASE_RATE,
+  WEAPON_B_BURST_TOTAL,
+  WEAPON_B_BURST_DELAY,
+  SPECIAL_HYPER_COST,
+  SPECIAL_SPREAD_ANGLE,
+  SPECIAL_SPREAD_OFFSET,
+  SPECIAL_B_DAMAGE,
+  SPECIAL_B_COOLDOWN_FRAMES,
+  SPECIAL_SPREAD_COLOR,
 } from "../config/constants";
 import { NEGI_GREEN, BENI_RED, MAGENTA, YELLOW } from "../config/colors";
-import { Projectile, createProjectile } from "./Projectile";
+import {
+  Projectile,
+  createProjectile,
+  createProjectileWithAngle,
+} from "./Projectile";
 import { DashRing } from "./effects/DashRing";
 import { ShieldEffect } from "./effects/ShieldEffect";
 import { AudioManager } from "../systems/Audio";
@@ -137,6 +149,20 @@ export class Player {
   private weaponBCooldown = 0;
   private damageFlashFrames = 0;
   private muzzleFlashFrames = 0;
+
+  // --- weapon_b burst / special spread state ---
+  // Literal port of player.py:252-259. When `weaponBBurstActive` is true,
+  // the update() loop fires one shot per `weaponBBurstDelay` frames up to
+  // `WEAPON_B_BURST_TOTAL` shots; `isSpecialSpreadActive` selects between
+  // the ballistic burst and the 2-bullet blue beam spread. `weaponBBaseAngle`
+  // is captured at burst activation and shared by every shot in the burst
+  // (the per-shot angle is computed as `base + (count-2)*spread_angle`).
+  private weaponBBurstActive = false;
+  private weaponBBurstCount = 0;
+  private weaponBBurstTimer = 0;
+  private weaponBBaseAngle = 0;
+  private weaponBTarget: Player | null = null;
+  private isSpecialSpreadActive = false;
 
   // Primary render target. All per-frame body drawing (hyper glow, tofu
   // square, aging color, border, weapon line, fermentation particles) lands
@@ -399,6 +425,31 @@ export class Player {
       this.y = arenaCenterY + (cdy / dist) * maxR;
     }
 
+    // --- weapon_b burst driver (py:423-440). Runs every frame; fires the
+    //     next queued shot when the timer hits zero. Must tick BEFORE the
+    //     activation block below so a newly-started burst doesn't get its
+    //     first-frame timer decremented prematurely.
+    if (this.weaponBBurstActive) {
+      this.weaponBBurstTimer -= dtScale;
+      if (
+        this.weaponBBurstTimer <= 0 &&
+        this.weaponBBurstCount < WEAPON_B_BURST_TOTAL
+      ) {
+        if (this.isSpecialSpreadActive) {
+          this._fireSpecialSpreadShot(scene, spawnProjectile);
+        } else {
+          this._fireWeaponBBurstShot(scene, spawnProjectile);
+        }
+        this.weaponBBurstCount += 1;
+        if (this.weaponBBurstCount < WEAPON_B_BURST_TOTAL) {
+          this.weaponBBurstTimer = WEAPON_B_BURST_DELAY;
+        } else {
+          this.weaponBBurstActive = false;
+          this.isSpecialSpreadActive = false;
+        }
+      }
+    }
+
     // --- weapon_a fire (beam). Shield locks out weapons, same as Python. ---
     if (
       !this.isShielding &&
@@ -425,29 +476,72 @@ export class Player {
       this.muzzleFlashFrames = MUZZLE_FLASH_FRAMES;
     }
 
-    // --- weapon_b fire (ballistic arc). Heat += 3 per shot (spec). ---
-    if (
+    // --- weapon_b / special spread activation (py:650-709). Three branches:
+    //   (1) special + weapon_b AND hyper >= SPECIAL_HYPER_COST  -> spread burst
+    //   (2) special + weapon_b AND hyper <  SPECIAL_HYPER_COST  -> fallback
+    //       to a single ballistic (Python literally calls create_projectile
+    //       on weapon_b here, not a burst)
+    //   (3) weapon_b alone                                        -> ballistic burst
+    // Shield locks out all three. Cooldown + !burstActive gate ensures a
+    // running burst can't be re-triggered mid-sequence.
+    const canFireWeaponB =
       !this.isShielding &&
-      this.keyStates.weapon_b &&
       this.weaponBCooldown <= 0 &&
-      this.beans > 0
-    ) {
-      const angle = Math.atan2(opponent.y - this.y, opponent.x - this.x);
-      const p = createProjectile(
-        scene,
-        "ballistic",
-        this.x,
-        this.y,
-        angle,
-        WEAPON_B_DAMAGE,
-        this,
-        opponent
+      !this.weaponBBurstActive;
+
+    if (canFireWeaponB && this.keyStates.special && this.keyStates.weapon_b) {
+      if (this.hyperGauge >= SPECIAL_HYPER_COST) {
+        // Branch 1: special spread burst.
+        this.hyperGauge -= SPECIAL_HYPER_COST;
+        this.weaponBBurstActive = true;
+        this.isSpecialSpreadActive = true;
+        this.weaponBBurstCount = 0;
+        this.weaponBBurstTimer = 0;
+        this.weaponBBaseAngle = Math.atan2(
+          opponent.y - this.y,
+          opponent.x - this.x
+        );
+        this.weaponBTarget = opponent;
+        this._fireSpecialSpreadShot(scene, spawnProjectile);
+        this.weaponBBurstCount += 1;
+        this.weaponBBurstTimer = WEAPON_B_BURST_DELAY;
+        // py:698 — play "special" SE at activation.
+        AudioManager.get().playSfx("special");
+        this.weaponBCooldown = SPECIAL_B_COOLDOWN_FRAMES;
+      } else if (this.beans > 0) {
+        // Branch 2: hyper-starved fallback — single ballistic, no burst.
+        // (py:704-709 literally does create_projectile on weapon_b.)
+        const angle = Math.atan2(opponent.y - this.y, opponent.x - this.x);
+        const p = createProjectile(
+          scene,
+          "ballistic",
+          this.x,
+          this.y,
+          angle,
+          WEAPON_B_DAMAGE,
+          this,
+          opponent
+        );
+        spawnProjectile(p);
+        this.weaponBCooldown = WEAPON_B_COOLDOWN_FRAMES;
+        this.beans = Math.max(0, this.beans - 2);
+        this.muzzleFlashFrames = MUZZLE_FLASH_FRAMES;
+      }
+    } else if (canFireWeaponB && this.keyStates.weapon_b && this.beans > 0) {
+      // Branch 3: normal weapon_b burst activation.
+      this.weaponBBurstActive = true;
+      this.isSpecialSpreadActive = false;
+      this.weaponBBurstCount = 0;
+      this.weaponBBurstTimer = 0;
+      this.weaponBBaseAngle = Math.atan2(
+        opponent.y - this.y,
+        opponent.x - this.x
       );
-      spawnProjectile(p);
+      this.weaponBTarget = opponent;
+      this._fireWeaponBBurstShot(scene, spawnProjectile);
+      this.weaponBBurstCount += 1;
+      this.weaponBBurstTimer = WEAPON_B_BURST_DELAY;
       this.weaponBCooldown = WEAPON_B_COOLDOWN_FRAMES;
-      this.heat = Math.min(MAX_HEAT, this.heat + 3);
-      this.beans = Math.max(0, this.beans - 2);
-      this.muzzleFlashFrames = MUZZLE_FLASH_FRAMES;
     }
 
     // --- heat passive decay (doesn't decay while dashing - matches Python) ---
@@ -491,6 +585,91 @@ export class Player {
     }
 
     this.render();
+  }
+
+  /**
+   * Fire one shot of the weapon_b burst sequence. Port of
+   * legacy/pygbag/game/player.py:891-917 (`_fire_weapon_b_burst_shot`).
+   * Per-shot angle fan: `base + (count - 2) * (pi/8)`, so with burst_total=10
+   * the spread sweeps from -2 to +7 steps of 22.5° relative to the target
+   * bearing captured at activation. Each bullet is half damage, half speed,
+   * 4× lifetime and rendered grey (burst bullets are distinct from the
+   * single ballistic fallback). Heat/hyper bumps match Python's
+   * create_projectile_with_angle (heat+=10, hyper+=15 per shot).
+   */
+  private _fireWeaponBBurstShot(
+    scene: Phaser.Scene,
+    spawnProjectile: (p: Projectile) => void
+  ): void {
+    const angleOffset =
+      (this.weaponBBurstCount - 2) * SPECIAL_SPREAD_ANGLE;
+    const currentAngle = this.weaponBBaseAngle + angleOffset;
+    // Python applies damage/=2 after construction; pre-apply via damageMult.
+    const p = createProjectileWithAngle(
+      scene,
+      "ballistic",
+      this.x,
+      this.y,
+      currentAngle,
+      WEAPON_B_DAMAGE,
+      this,
+      this.weaponBTarget,
+      {
+        speedMult: 0.5,
+        damageMult: 0.5,
+        lifetimeMult: 4,
+        colorOverride: 0x808080, // grey (py:908)
+      }
+    );
+    spawnProjectile(p);
+    // py:758-762 inside create_projectile_with_angle: heat+=10, hyper+=15.
+    this.heat = Math.min(MAX_HEAT, this.heat + 10);
+    this.hyperGauge = Math.min(MAX_HYPER, this.hyperGauge + 15);
+    // py:915-917 plays the "shot" SE for every burst bullet. Deliberately
+    // kept even though weapon_a also uses "shot" — Python doesn't dedupe.
+    AudioManager.get().playSfx("shot");
+    this.muzzleFlashFrames = MUZZLE_FLASH_FRAMES;
+  }
+
+  /**
+   * Fire one iteration of the hyper-100 special spread. Port of
+   * legacy/pygbag/game/player.py:919-957 (`_fire_special_spread_shot`).
+   * Spawns TWO beam projectiles per iteration, offset by the primary fan
+   * (count-2)*pi/8 and that angle + pi/16 (11.25° further). Both are
+   * half-speed, 4× lifetime, and coloured (50,100,255) blue. Uses the
+   * special_b weapon stats (BEAM, damage=10, py:230).
+   */
+  private _fireSpecialSpreadShot(
+    scene: Phaser.Scene,
+    spawnProjectile: (p: Projectile) => void
+  ): void {
+    const angleOffset1 =
+      (this.weaponBBurstCount - 2) * SPECIAL_SPREAD_ANGLE;
+    const angleOffset2 = angleOffset1 + SPECIAL_SPREAD_OFFSET;
+    for (const off of [angleOffset1, angleOffset2]) {
+      const p = createProjectileWithAngle(
+        scene,
+        "beam",
+        this.x,
+        this.y,
+        this.weaponBBaseAngle + off,
+        SPECIAL_B_DAMAGE,
+        this,
+        this.weaponBTarget,
+        {
+          speedMult: 0.5,
+          lifetimeMult: 4,
+          colorOverride: SPECIAL_SPREAD_COLOR,
+        }
+      );
+      spawnProjectile(p);
+    }
+    // Heat/hyper bumps happen once per create_projectile_with_angle call
+    // in Python — so TWO bumps per spread iteration.
+    this.heat = Math.min(MAX_HEAT, this.heat + 20);
+    this.hyperGauge = Math.min(MAX_HYPER, this.hyperGauge + 30);
+    AudioManager.get().playSfx("shot");
+    this.muzzleFlashFrames = MUZZLE_FLASH_FRAMES;
   }
 
   /**
@@ -662,6 +841,14 @@ export class Player {
     this.weaponBCooldown = 0;
     this.damageFlashFrames = 0;
     this.muzzleFlashFrames = 0;
+    // py:319-321 equivalents — reset burst state so a new round doesn't
+    // start with a half-consumed burst.
+    this.weaponBBurstActive = false;
+    this.weaponBBurstCount = 0;
+    this.weaponBBurstTimer = 0;
+    this.weaponBBaseAngle = 0;
+    this.weaponBTarget = null;
+    this.isSpecialSpreadActive = false;
     this.facingAngle = 0;
     this.keyStates = emptyKeyStates();
     for (const r of this.dashRings) r.destroy();

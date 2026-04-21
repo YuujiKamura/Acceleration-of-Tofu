@@ -33,6 +33,23 @@ export const HYPER_DECREASE_RATE_AT_BORDER = 2;
 export const HYPER_CONSUMPTION_RATE = 1.0;
 export const HYPER_ACTIVATION_COST = 50;
 
+// --- Weapon_B burst / special spread (player.py:255-256) ---
+// burst_delay=5 frames between shots, burst_total=10 shots per burst.
+export const WEAPON_B_BURST_TOTAL = 10;
+export const WEAPON_B_BURST_DELAY = 5;
+// player.py:675,678 — special (weapon_b + special) costs 100 hyper gauge.
+export const SPECIAL_HYPER_COST = 100;
+// player.py:899 spread_angle = math.pi / 8 (22.5°) — base fan step.
+export const SPECIAL_SPREAD_ANGLE = Math.PI / 8;
+// player.py:934 — second bullet of special spread is offset by an extra
+// pi/16 (11.25°) beyond the primary bullet.
+export const SPECIAL_SPREAD_OFFSET = Math.PI / 16;
+// special_b weapon stats (player.py:230): BEAM, damage=10, cooldown=15.
+export const SPECIAL_B_DAMAGE = 10;
+export const SPECIAL_B_COOLDOWN_FRAMES = 15;
+// Blue color for special spread projectiles — (50,100,255) in Python.
+export const SPECIAL_SPREAD_COLOR = 0x3264ff;
+
 // --- Weapons ---
 export const WEAPON_TYPES = {
   BEAM: "beam",

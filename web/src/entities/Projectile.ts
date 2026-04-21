@@ -87,6 +87,15 @@ export class Projectile {
    */
   public target: Player | null;
 
+  /**
+   * Optional color override. When set, `render()` uses this color for the
+   * body of the projectile instead of the owner-based default (e.g. yellow
+   * for player1 ballistic). Ports Python's `projectile.color = (...)`
+   * mutation used by `_fire_weapon_b_burst_shot` (grey) and
+   * `_fire_special_spread_shot` (blue).
+   */
+  public colorOverride: number | null = null;
+
   constructor(
     scene: Phaser.Scene,
     type: ProjectileType,
@@ -250,8 +259,10 @@ export class Projectile {
 
     switch (this.type) {
       case "beam": {
-        // color = CYAN if owner.is_player1 else MAGENTA
-        const color = this.owner.isPlayer1 ? CYAN : MAGENTA;
+        // color = CYAN if owner.is_player1 else MAGENTA, optionally
+        // overridden by colorOverride (special spread blue).
+        const color =
+          this.colorOverride ?? (this.owner.isPlayer1 ? CYAN : MAGENTA);
         const endX = x + Math.cos(this.angle) * BEAM_LENGTH;
         const endY = y + Math.sin(this.angle) * BEAM_LENGTH;
         // pygame.draw.line(screen, color, (x, y), (end_x, end_y), 3)
@@ -266,8 +277,10 @@ export class Projectile {
         break;
       }
       case "ballistic": {
-        // color = YELLOW if owner.is_player1 else ORANGE
-        const color = this.owner.isPlayer1 ? YELLOW : ORANGE;
+        // color = YELLOW if owner.is_player1 else ORANGE, optionally
+        // overridden by colorOverride (burst grey / special spread blue).
+        const color =
+          this.colorOverride ?? (this.owner.isPlayer1 ? YELLOW : ORANGE);
         // pygame.draw.circle(screen, color, (x, y), radius)
         g.fillStyle(color, 1);
         g.fillCircle(x, y, this.radius);
@@ -331,4 +344,50 @@ export function createProjectile(
   target: Player | null = null
 ): Projectile {
   return new Projectile(scene, type, x, y, angleRad, damage, owner, target);
+}
+
+/**
+ * Angle-based factory for radial/spread firing patterns. Ports Python's
+ * `Player.create_projectile_with_angle(weapon, angle)` at
+ * legacy/pygbag/game/player.py:743-765. The `options` bag covers the
+ * post-construction mutations Python performs on the returned object:
+ *   - speedMult: scale vx/vy magnitude (burst uses 0.5)
+ *   - lifetimeMult: scale lifetimeFrames (burst/spread use 4)
+ *   - damageMult: scale damage (burst halves it)
+ *   - colorOverride: replace the owner-based render color (burst=grey,
+ *                    special spread=blue 0x3264ff)
+ * Kept separate from `createProjectile` so existing call sites stay
+ * byte-for-byte compatible.
+ */
+export function createProjectileWithAngle(
+  scene: Phaser.Scene,
+  type: ProjectileType,
+  x: number,
+  y: number,
+  angleRad: number,
+  damage: number,
+  owner: Player,
+  target: Player | null = null,
+  options: {
+    speedMult?: number;
+    lifetimeMult?: number;
+    damageMult?: number;
+    colorOverride?: number;
+  } = {}
+): Projectile {
+  const p = new Projectile(scene, type, x, y, angleRad, damage, owner, target);
+  if (options.speedMult !== undefined && options.speedMult !== 1) {
+    p.vx *= options.speedMult;
+    p.vy *= options.speedMult;
+  }
+  if (options.lifetimeMult !== undefined && options.lifetimeMult !== 1) {
+    p.lifetimeFrames *= options.lifetimeMult;
+  }
+  if (options.damageMult !== undefined && options.damageMult !== 1) {
+    p.damage *= options.damageMult;
+  }
+  if (options.colorOverride !== undefined) {
+    p.colorOverride = options.colorOverride;
+  }
+  return p;
 }
