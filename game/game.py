@@ -200,15 +200,14 @@ class Game:
             return
         try:
             self.title_bgm = pygame.mixer.Sound("assets/sounds/rockman_title.ogg")
-            self.title_bgm.set_volume(0.5)
+            # 起動直後にいきなり鳴っても驚かない音量に抑える。
+            self.title_bgm.set_volume(0.3)
         except Exception:
             self.title_bgm = None
 
     def play_title_bgm(self):
         if self.title_bgm and not self.title_bgm_playing:
-            # スプラッシュ廃止で起動直後にいきなり BGM が鳴ってしまわないよう、
-            # 1.5 秒かけて無音から設定音量までフェードインさせる。
-            self.title_bgm.play(-1, fade_ms=1500)
+            self.title_bgm.play(-1)
             self.title_bgm_playing = True
 
     def stop_title_bgm(self):
