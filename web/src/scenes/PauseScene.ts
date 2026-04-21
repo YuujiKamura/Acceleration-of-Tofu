@@ -8,11 +8,12 @@ import { SCREEN_WIDTH, SCREEN_HEIGHT } from "../config/constants";
  * gameplay scene via `this.scene.pause("SingleVersusScene")` before
  * launching us, and we resume it on "ゲームに戻る" selection.
  *
- * Ports game/states.py::PauseState. We use the web-localized 3-item
- * menu (resume / instructions / back-to-title); the "Quit" item from
- * Python is dropped because there's no process to quit in a browser.
+ * Ports game/states.py::PauseState. Menu is trimmed to what actually
+ * works: resume + back-to-title. The Python "Quit" item has no process
+ * to quit in a browser, and "操作説明" (InstructionsScene) is not
+ * implemented — we do not ship dead menu items.
  */
-const MENU_ITEMS = ["ゲームに戻る", "操作説明", "タイトルに戻る"] as const;
+const MENU_ITEMS = ["ゲームに戻る", "タイトルに戻る"] as const;
 
 const PARENT_SCENE_KEY = "SingleVersusScene";
 
@@ -96,11 +97,6 @@ export class PauseScene extends Phaser.Scene {
         this.resumeGame();
         return;
       case 1:
-        // TODO: InstructionsScene not yet ported
-        // eslint-disable-next-line no-console
-        console.log("[PauseScene] TODO: InstructionsScene");
-        return;
-      case 2:
         this.returnToTitle();
         return;
     }

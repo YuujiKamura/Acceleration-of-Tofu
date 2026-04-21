@@ -4,14 +4,9 @@ import { tr } from "../i18n";
 // D3: audio wiring — start the title BGM once the scene builds.
 import { AudioManager } from "../systems/Audio";
 
-const MENU_KEYS = [
-  "menu.single",
-  "menu.training",
-  "menu.autotest",
-  "menu.controls",
-  "menu.options",
-  "menu.quit",
-] as const;
+// 実装済みの遷移先があるものだけ並べる。training/controls/options/quit は
+// 実 Scene が無いので追加しない (追加したくなったら先に Scene を実装する)。
+const MENU_KEYS = ["menu.single", "menu.autotest"] as const;
 
 type MenuKey = (typeof MENU_KEYS)[number];
 
@@ -142,23 +137,12 @@ export class TitleScene extends Phaser.Scene {
     const key = MENU_KEYS[this.selectedIndex];
     switch (key) {
       case "menu.single":
-      case "menu.training":
         this.scene.stop("TitleBackgroundScene");
         this.scene.start("SingleVersusScene");
         return;
       case "menu.autotest":
         this.scene.stop("TitleBackgroundScene");
         this.scene.start("AutoTestScene");
-        return;
-      case "menu.controls":
-      case "menu.options":
-        // TODO: dedicated scenes
-        // eslint-disable-next-line no-console
-        console.log(`[menu] TODO: ${key}`);
-        return;
-      case "menu.quit":
-        // eslint-disable-next-line no-console
-        console.log("[menu] quit pressed (no-op in browser)");
         return;
     }
   }
