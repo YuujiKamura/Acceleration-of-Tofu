@@ -1,9 +1,8 @@
 # アクセラレーションオブ豆腐 / Acceleration of Tofu
-
-**ブラウザで即プレイ
-👉 https://yuujikamura.github.io/Acceleration-of-Tofu/
-
 **Languages**: [日本語](#日本語) · [English](#english) · [中文](#中文简体) · [한국어](#한국어)
+
+**ブラウザで即プレイ(画面タップで音が出ます）
+👉 https://yuujikamura.github.io/Acceleration-of-Tofu/
 
 <img width="1430" height="804" alt="image" src="https://github.com/user-attachments/assets/3aabe033-b5d3-4ee5-9378-7acea1063373" />
 
