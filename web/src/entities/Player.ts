@@ -23,7 +23,7 @@ import {
   SPECIAL_B_COOLDOWN_FRAMES,
   SPECIAL_SPREAD_COLOR,
 } from "../config/constants";
-import { NEGI_GREEN, BENI_RED, MAGENTA, YELLOW } from "../config/colors";
+import { NEGI_GREEN, BENI_RED, MAGENTA, YELLOW, TOFU_WHITE } from "../config/colors";
 import {
   Projectile,
   createProjectile,
@@ -618,7 +618,7 @@ export class Player {
         speedMult: 0.5,
         damageMult: 0.5,
         lifetimeMult: 4,
-        colorOverride: 0x808080, // grey (py:908)
+        colorOverride: TOFU_WHITE, // tofu white, was grey 0x808080 in py:908 — issue #18
       }
     );
     spawnProjectile(p);
